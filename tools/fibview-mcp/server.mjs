@@ -101,7 +101,7 @@ function settle(tw) {
   const { S, sim } = tw;
   const steps = S.mode === 'ebsd' || S.mode === 'tkd' ? 400 : S.mode === 'sv' ? 60 : S.mode === 'mc' ? 80 : 8;
   for (let i = 0; i < steps; i++) { sim.update(S.mode === 'sv' ? 0.4 : 0.05); if ((S.mode === 'ebsd' || S.mode === 'tkd') && sim.map?.done >= sim.map.N ** 2) break; if (S.mode === 'sv' && sim.sv?.done) break; }
-  sim._mt = 0; sim.update(0.05);
+  sim._mt = 0; sim.update(0.05); sim.update(0.05);
 }
 function save(tw, tag, a) {
   const data = collectData(tw.sim, tw.S);

@@ -45,7 +45,7 @@ for (let i = 0; i < steps; i++) {
   if ((S.mode === 'ebsd' || S.mode === 'tkd') && sim.map && sim.map.done >= sim.map.N ** 2) break;
   if (S.mode === 'sv' && sim.sv?.done) break;
 }
-sim._mt = 0; sim.update(0.05);
+sim._mt = 0; sim.update(0.05); sim.update(0.05);
 const data = collectData(sim, S);
 const out = opt.out ?? `${S.mode}-${S.spec}.npz`;
 writeFileSync(out, toNpz(data));

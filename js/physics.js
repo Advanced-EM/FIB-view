@@ -647,7 +647,7 @@ function voronoi3(x, y, z, cell, seed) {
 }
 const oriCache = new Map();
 function grainOri(id, seed) {
-  const key = id + '|' + seed;
+  const key = id * 1031 + seed;
   let o = oriCache.get(key);
   if (!o) {
     o = randomOri(hash(id, 1, seed), hash(id, 2, seed), hash(id, 3, seed));

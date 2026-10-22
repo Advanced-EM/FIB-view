@@ -653,17 +653,29 @@ function drawLam(sim, S, m, s) {
     label(m.ctx, `Step ${L.step + 1}/8 · ${LAM_STEPS[L.step].title}${L.busy ? ' · running' : ''}`, 8 * m.dpr, 36 * m.dpr, m.dpr, { color: C.accent });
     return;
   }
-  // on the grid: the ion view from above, and the SEM view of the face
+  // on the grid: the ion view from above (the lamella welded to the side of a copper post), and the SEM view of the face
   const { ctx, W, H, dpr } = m;
-  ctx.fillStyle = '#0a0d12'; ctx.fillRect(0, 0, W, H);
-  const cx = W / 2, cy = H / 2, sc = Math.min(W, H) / 22; // px per µm
-  ctx.fillStyle = '#5a4630'; ctx.fillRect(cx - 9 * sc, cy + 0.5 * sc, 18 * sc, 9 * sc); // grid post
-  ctx.fillStyle = '#d8d0bf'; ctx.fillRect(cx - 7 * sc, cy - 0.8 * sc, 3 * sc, 1.6 * sc); // weld
-  const tpx = Math.max(1.2 * dpr, (L.t_top / 1000) * sc * 6); // thickness exaggerated ×6
-  ctx.fillStyle = L.hole ? '#401616' : '#9aa6b5'; ctx.fillRect(cx - 6 * sc, cy - tpx / 2, 12 * sc, tpx);
-  ctx.fillStyle = 'rgba(111,214,255,0.25)'; ctx.fillRect(cx - 4 * sc, cy - 3 * sc, 8 * sc, 6 * sc);
-  label(ctx, 'thinning window', cx, cy - 3.6 * sc, dpr, { color: C.accent, size: 8.5, align: 'center' });
-  label(ctx, `ion view from above (thickness ×6) · ${P.ION[S.ion].name}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
+  ctx.fillStyle = '#07090c'; ctx.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.46, sc = Math.min(W, H) / 26; // px per µm
+  // grid post: a copper finger seen from above, with milling marks
+  const pg = ctx.createLinearGradient(0, cy, 0, cy + 10 * sc); pg.addColorStop(0, '#9a6a3c'); pg.addColorStop(1, '#4a3420');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.moveTo(cx - 12 * sc, cy + 10 * sc); ctx.lineTo(cx - 12 * sc, cy + 1.2 * sc); ctx.lineTo(cx - 7 * sc, cy + 1.2 * sc); ctx.lineTo(cx - 7 * sc, cy + 10 * sc); ctx.closePath(); ctx.fill();
+  // Pt welds
+  ctx.fillStyle = '#e8e0cc'; ctx.fillRect(cx - 7.4 * sc, cy - 1.0 * sc, 1.6 * sc, 2.4 * sc);
+  // the lamella: thickness drawn ×8; the thinned window narrower and brighter where thin (ions see the top edge)
+  const ex = 2.5, tThick = (1000 / 1000) * sc * ex, tWin = Math.max(1.2 * dpr, (L.t_top / 1000) * sc * ex);
+  ctx.fillStyle = '#8f99a6'; ctx.fillRect(cx - 6 * sc, cy - tThick / 2, 12 * sc, tThick);
+  ctx.fillStyle = L.hole ? '#2a0e0e' : `rgb(${Math.round(150 + 60 * Math.exp(-L.t_top / 200))},${Math.round(160 + 60 * Math.exp(-L.t_top / 200))},${Math.round(175 + 60 * Math.exp(-L.t_top / 200))})`;
+  const bend = L.bent ? 0.4 * sc : 0;
+  ctx.beginPath(); ctx.moveTo(cx - 4 * sc, cy - tWin / 2); ctx.quadraticCurveTo(cx, cy - tWin / 2 + bend, cx + 4 * sc, cy - tWin / 2); ctx.lineTo(cx + 4 * sc, cy + tWin / 2); ctx.quadraticCurveTo(cx, cy + tWin / 2 + bend, cx - 4 * sc, cy + tWin / 2); ctx.closePath(); ctx.fill();
+  // Pt cap remnant on the top edge
+  if (L.capLeft > 0.05) { ctx.fillStyle = 'rgba(240,234,219,0.55)'; ctx.fillRect(cx - 6 * sc, cy - Math.min(tThick, tWin) / 2 - 1, 12 * sc, 2); }
+  // thinning windows either side
+  ctx.strokeStyle = 'rgba(111,214,255,0.55)'; ctx.setLineDash([3 * dpr, 3 * dpr]); ctx.lineWidth = 1 * dpr;
+  ctx.strokeRect(cx - 4 * sc, cy - 3 * sc, 8 * sc, 3 * sc - tWin / 2); ctx.strokeRect(cx - 4 * sc, cy + tWin / 2, 8 * sc, 3 * sc - tWin / 2); ctx.setLineDash([]);
+  label(ctx, 'thinning windows', cx, cy - 3.5 * sc, dpr, { color: C.accent, size: 8.5, align: 'center' });
+  label(ctx, 'grid post', cx - 9.5 * sc, cy + 6 * sc, dpr, { color: '#d9b27c', size: 8.5, align: 'center' });
+  label(ctx, `ion view from above (thickness ×${ex}) · ${P.ION[S.ion].name}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
   label(ctx, `Step ${Math.min(8, L.step + 1)}/8 · ${LAM_STEPS[Math.min(7, L.step)].title}`, 8 * dpr, 16 * dpr, dpr, { color: C.accent });
   if (!hide) label(ctx, `${Math.round(L.t_top)} nm at the top · ${Math.round(lamThickness(L, 3))} nm 3 µm down${L.bent ? ' · BENT' : ''}${L.hole ? ' · HOLE' : ''}`, 8 * dpr, 36 * dpr, dpr, { color: L.bent || L.hole ? C.warm : C.text, size: 9 });
   // the face at the SEM's voltage: thin regions transmit electrons and brighten

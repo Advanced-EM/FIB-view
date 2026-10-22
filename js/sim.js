@@ -84,10 +84,15 @@ export class Sim {
     const flat = Math.abs(s) < 2e-3;
     const xs = (i) => cx + (i + 0.5 - n / 2) * px;
     let Hs, ny0, ys0, pyS, rows;
+    let FL = null;
     if (flat) {
-      // straight down: the image grid is the height map
+      // straight down: the image grid is the height map (and its fields are reused for the materials)
       Hs = new Float32Array(N); rows = n; pyS = px; ys0 = cy + (n / 2 - 0.5) * px; ny0 = n;
-      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) Hs[j * n + i] = mill.surface(xs(i), cy - (j + 0.5 - n / 2) * px, px).Z;
+      FL = { top: new Float32Array(N), f: new Array(N) };
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        const k = j * n + i, sf = mill.surface(xs(i), cy - (j + 0.5 - n / 2) * px, px);
+        Hs[k] = sf.Z; FL.top[k] = sf.top; FL.f[k] = mill.patterns.length ? sf : null;
+      }
     } else {
       // height map over the beam's footprint, rows ordered by decreasing y
       const zc = mill.surface(cx, cy, px).Z;
@@ -146,8 +151,8 @@ export class Sim {
     const eps = Math.max(1e-4, px * 0.3);
     for (let k = 0; k < N; k++) {
       const x = Xh[k], y = Yh[k] + eps * s, Z = Zh[k] - eps * c;
-      const f = mill.patterns.length ? mill.fields(x, y) : null;
-      const top = sp.top(x, y, px);
+      const f = FL ? FL.f[k] : mill.patterns.length ? mill.fields(x, y) : null;
+      const top = FL ? FL.top[k] : sp.top(x, y, px);
       const r = mill.materialAt(x, y, Z, top, f);
       M[k] = MKEYS.indexOf(r.mat); ori[k] = r.ori ?? null; if (r.gb != null) gb[k] = r.gb;
       dep[k] = f ? f.dep - f.rem : 0;
@@ -207,16 +212,17 @@ export class Sim {
     const beamS = mat3.tmv(T, [0, 0, -1]);
     const det = P.norm([-1, 0.25, 0.6]); // the ETD sits to the left, above the sample
     const coatM = P.MAT.C;
+    const dtab = MKEYS.map((mk) => { const m = P.MAT[mk]; return m.rho ? P.delta(S.coated && !m.cond ? { ...m, dmax: coatM.dmax * 0.6 + m.dmax * 0.4 } : m, E) : 0; });
+    const chMemo = new Map(), chOf = (O) => { let c = chMemo.get(O); if (c === undefined) { const r = P.channeling(O, beamS, 0.85); c = 1 - 0.3 * r.ch - 0.04 * r.b[2]; chMemo.set(O, c); } return c; };
     for (let k = 0; k < n * n; k++) {
       const m = P.MAT[MKEYS[M[k]]];
       if (!m.rho) continue;
       const nS = [v.nx[k], v.ny[k], v.nz[k]], nM = mat3.mv(T, nS);
       const cosI = clamp(nM[2], 0.05, 1), inc = Math.acos(cosI);
-      const mm = S.coated && !m.cond ? { ...m, dmax: coatM.dmax * 0.6 + m.dmax * 0.4 } : m;
-      se1[k] = P.delta(mm, E) / Math.max(0.15, cosI);
+      se1[k] = dtab[M[k]] / Math.max(0.15, cosI);
       let et = P.eta(m.Z, inc);
       const O = ori[k];
-      if (O) { const ch = P.channeling(O, beamS, 0.85); et *= 1 - 0.3 * ch.ch - 0.04 * ch.b[2]; }
+      if (O) et *= chOf(O);
       bse[k] = et;
       nxA[k] = nM[0]; nyA[k] = nM[1];
       face[k] = clamp(0.55 + 0.7 * P.dot(nM, det), 0.15, 1.25);
@@ -237,7 +243,7 @@ export class Sim {
     for (let k = 0; k < n * n; k++) {
       const m = P.MAT[MKEYS[M[k]]];
       if (!m.rho) { out[k] = 0; continue; }
-      const dN = P.delta(m, E);
+      const dN = dtab[M[k]];
       const SE1 = se1[k] * (1 + 0.8 * Math.min(3, edge[k])), SE2 = dN * beta * se2src[k];
       let val;
       if (mode === 'inlens') val = (SE1 + 0.35 * SE2) * (1 / (1 + (S.wd / 5) ** 2));
@@ -306,17 +312,20 @@ export class Sim {
     const dS = [0, Math.sin(v.theta), -Math.cos(v.theta)];
     const det = P.norm([-1, 0.25, 0.6]), T = this.tiltM();
     const out = new Float32Array(n * n), W = v.Wv, Wb = blurred(W, n, n, 1.2);
+    // per-material yields and per-grain channelling, computed once per image
+    const ytab = MKEYS.map((mk) => (P.MAT[mk].rho ? (S.fibDet === 'si' ? P.siYield(ion, mk, E) : P.iseYield(ion, mk, E)) : 0));
+    const chMemo = new Map(), chOf = (O) => { let c = chMemo.get(O); if (c === undefined) { c = Math.min(1, 1.15 * P.channeling(O, dS, 2.4).ch); chMemo.set(O, c); } return c; };
     let charging = false;
     for (let k = 0; k < n * n; k++) {
       const m = P.MAT[MKEYS[M[k]]];
       if (!m.rho) continue;
-      const nS = [v.nx[k], v.ny[k], v.nz[k]], cosI = clamp(-P.dot(nS, dS), 0.08, 1);
-      const O = ori[k], ch = O ? Math.min(1, 1.15 * P.channeling(O, dS, 2.4).ch) : 0;
-      const nM = mat3.mv(T, nS), face = clamp(0.6 + 0.6 * P.dot(nM, det), 0.2, 1.2);
+      const nx = v.nx[k], ny = v.ny[k], nz = v.nz[k], cosI = clamp(-(nx * dS[0] + ny * dS[1] + nz * dS[2]), 0.08, 1);
+      const O = ori[k], ch = O ? chOf(O) : 0;
+      const nM = mat3.mv(T, [nx, ny, nz]), face = clamp(0.6 + 0.6 * P.dot(nM, det), 0.2, 1.2);
       const edge = 1 + 0.5 * Math.min(2, Math.max(0, W[k] - Wb[k]) / (px * 2));
       let val;
-      if (S.fibDet === 'si') val = P.siYield(ion, MKEYS[M[k]], E) * (1 - 0.45 * ch) / Math.pow(cosI, 0.4) * edge;
-      else val = (P.iseYield(ion, MKEYS[M[k]], E) * (1 - 0.8 * ch)) / Math.pow(cosI, 0.9) * edge * face;
+      if (S.fibDet === 'si') val = ytab[M[k]] * (1 - 0.45 * ch) / Math.pow(cosI, 0.4) * edge;
+      else val = (ytab[M[k]] * (1 - 0.8 * ch)) / Math.pow(cosI, 0.9) * edge * face;
       // insulators charge positive under ions and hold their secondaries back, unless an electron flood neutralises them
       if (!m.cond && !S.coated && v.dep[k] < 0.02) { charging = true; if (!S.flood) val *= S.fibDet === 'si' ? 1.4 : 0.22; }
       if (v.nz[k] < 0.4 && this.mill.patterns.length) val *= 1 + 0.35 * this.curtain(v, k);
@@ -711,13 +720,15 @@ export class Sim {
         }
       }
       const changed = this.mill.version !== this._mv;
+      // the ion image and the SEM view are recomputed on alternate frames, so a refresh never stalls a frame twice
       if (this.stale.ion || (changed && t - (this._mt ?? 0) > (a ? 350 : 120))) {
         this._mv = this.mill.version; this._mt = t;
         this.computeIonImage(); this.stale.ion = 0;
-        if (m !== 'fib') { this.sec = this.computeImage('sec', 192, { mode: 'se' }); }
+        if (m !== 'fib') this._needSec = true;
         this.version++;
+      } else if ((this._needSec || this.stale.img || !this.sec) && m !== 'fib') {
+        this.sec = this.computeImage('sec', 192, { mode: 'se' }); this._needSec = false; this.stale.img = 0; this.version++;
       }
-      if (this.stale.img && m !== 'fib') { this.sec = this.computeImage('sec', 192, { mode: 'se' }); this.stale.img = 0; this.version++; }
       if (!S.paused) {
         const frameT = clamp(0.35 + S.idwell * 0.25, 0.35, 8), prev = this.iraster;
         this.iraster += (dt * S.speed) / frameT;
