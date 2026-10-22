@@ -42,6 +42,7 @@ export function modeState(S, sim, m, prev = S.mode) {
     if (m === 'fib' && S.icur > 1000) S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 25 : 100);
     if (m === 'gis') S.icur = P.nearestCurrent(S.ion, clamp(4 * S.patW * S.patH, 10, S.ion === 'Ga' ? 3000 : 15000)); // ~4 pA/µm² for Pt
     if (m === 'sv') { S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 800 : 15000); S.kV = Math.min(S.kV, 3); S.current = Math.max(S.current, 400); }
+    if (m === 'lam' && S.spec !== 'chip') specState(S, sim, 'chip');
     if (m === 'lam') { S.fov = 30; S.cx = SITE.chip[0]; S.cy = SITE.chip[1]; S.kV = 5; }
   }
   if (m === 'mc' && prev && ION_MODES.includes(prev)) S.mcBeam = 'ion';

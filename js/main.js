@@ -43,10 +43,13 @@ const KEYS = Object.fromEntries(MODES.map(([m], i) => [m, '1234567890-='[i]]));
 const logMap = (min, max) => ({ to: (v) => (Math.log(v / min) / Math.log(max / min)) * 1000, from: (t) => min * Math.pow(max / min, t / 1000) });
 const IMG = 'se inlens bse', EB = 'se inlens bse ebsd tkd eds', IONM = 'fib mill gis lam sv', PATM = 'mill gis';
 const beamNow = () => OPS.activeBeam(S);
+const SPEC_KEYS_ALL = ['chip', 'ni', 'sn', 'nmc', 'xs'];
+const SPEC_OK = { lam: ['chip'], sv: ['nmc', 'chip'], tkd: ['xs'], ebsd: ['chip', 'ni', 'xs'], fib: ['chip', 'ni', 'sn', 'nmc'], mill: ['chip', 'ni', 'sn', 'nmc'], gis: ['chip', 'ni', 'sn', 'nmc'] };
 
 const CONTROLS = [
   { sec: 'The specimen' },
-  { chips: 'spec', opts: [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella']] },
+  // only the specimens that make sense in each mode (a lamella is cut from the chip, TKD needs a thin foil, …)
+  { chips: 'spec', dynOpts: () => [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella']].filter(([k]) => (SPEC_OK[S.mode] ?? SPEC_KEYS_ALL).includes(k)) },
   { slider: 'fov', label: 'Field of view', dyn: () => ({ min: sim.spec.fovMin, max: sim.spec.fovMax }), log: true, fmt: (v) => `${fmtLen(v)}  ×${Math.round(127000 / v).toLocaleString()}`, note: 'Drag the image to move the stage (in Mill and Deposit: Alt-drag); scroll it to zoom.' },
   { slider: 'tilt', label: 'Stage tilt', min: 0, max: 72, step: 1, fmt: (v) => `${v}°`, ends: ['flat', 'FIB 52°', 'EBSD 70°'] },
   { slider: 'ez', label: 'Stage Z', min: -40, max: 40, step: 0.1, fmt: (v) => `${(v + (S.mis?.zRead ?? 0)) >= 0 ? '+' : ''}${(v + (S.mis?.zRead ?? 0)).toFixed(1)} µm`, ends: ['down', 'eucentric', 'up'] },
