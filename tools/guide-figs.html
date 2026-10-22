@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guide figures · FIB-view</title>
+<!-- Renders the figures of docs/guides with the exhibit's own simulator and renderer, and posts them to the server
+     started by tools/guide-figs.mjs (which writes docs/guides/fig/). Open through that script, not directly. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=block" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  body { margin: 0; background: #06080b; color: #e9edf2; font: 12px 'IBM Plex Mono', monospace; }
+  canvas { display: block; }
+  #m { width: 640px; height: 640px; } #s { width: 1000px; height: 500px; } #g { width: 1400px; height: 900px; }
+  #lbl { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<p id="log">rendering…</p>
+<canvas id="m"></canvas><canvas id="s"></canvas><canvas id="g"></canvas><div id="lbl"></div>
+<script type="module">
+import * as P from '../js/physics.js';
+import { Sim } from '../js/sim.js';
+import { defaultState } from '../js/state.js';
+import * as OPS from '../js/ops.js';
+import * as R2 from '../js/render2d.js';
+import { Scene3D } from '../js/scene3d.js';
+import { lamQuality, newLamella } from '../js/mill.js';
+import { analyze } from '../js/analyze.js';
+
+const $ = (s) => document.querySelector(s), log = (t) => ($('#log').textContent = t);
+const mCv = $('#m'), sCv = $('#s');
+const post = async (name, body, type = 'image/jpeg') => fetch(`/fig/${name}`, { method: 'POST', headers: { 'content-type': type }, body });
+const shot = (cv, name, crop) => new Promise((ok) => {
+  let src = cv;
+  if (crop) { const c = document.createElement('canvas'); c.width = crop[2]; c.height = crop[3]; c.getContext('2d').drawImage(cv, crop[0], crop[1], crop[2], crop[3], 0, 0, crop[2], crop[3]); src = c; }
+  src.toBlob(async (b) => { await post(`${name}.jpg`, b); ok(); }, 'image/jpeg', 0.9);
+});
+const numbers = {};
+R2.layout.quiet = true;
+
+function fresh() { const S = defaultState(), sim = new Sim(S); return { S, sim }; }
+function settle(sim, S, n = 4) { for (let i = 0; i < n; i++) sim.update(0.05); sim._mt = 0; sim.mill.version++; sim.update(0.05); sim.update(0.05); sim.raster = sim.iraster = 0.999; sim.frame++; sim.iframe++; sim.version++; }
+const draw = (sim, S) => R2.draw(sim, S, mCv, sCv, -1);
+
+// ---------------------------------------------------------------- SOP-01 lift-out
+async function liftout() {
+  const { S, sim } = fresh();
+  OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'lam', 'se');
+  S.fov = 34;
+  settle(sim, S); draw(sim, S); await shot(mCv, 'lo_site_ion');
+  const run = async (tag, after) => {
+    OPS.lamStep(S, sim);
+    OPS.runQueue(sim); OPS.lamTick(sim);
+    settle(sim, S); after?.(); draw(sim, S);
+    await shot(mCv, `lo_${tag}_ion`);
+    const half = sCv.height; await shot(sCv, `lo_${tag}_sem`, [0, 0, half, half]);
+  };
+  await run('ebeampt'); await run('cap'); await run('trench'); await run('clean');
+  // a closer SEM look at the cleaned faces
+  const fov = S.fov; S.fov = 16; settle(sim, S); draw(sim, S); await shot(sCv, 'lo_clean_sem_zoom', [0, 0, sCv.height, sCv.height]); S.fov = fov;
+  await run('jcut');
+  numbers.patterns = sim.mill.patterns.filter((p) => p.kind !== 'img').map((p) => ({ label: p.label, kind: p.kind, shape: p.shape, w: p.w, h: p.h, depth: p.depth, current_pA: p.I, beam: p.beam, minutes: +(p.tEst / 60).toFixed(1) }));
+  // lift-out, then thinning: the face at 5 kV as an operator sees it, with the true profile
+  OPS.lamStep(S, sim); S.kV = 5;
+  const face = async (tag) => { settle(sim, S, 1); draw(sim, S); await shot(sCv, `lo_face_${tag}`); };
+  draw(sim, S); await shot(mCv, 'lo_grid_ion'); await face('1000');
+  const passes = [];
+  for (const [I, T] of [[800, 500], [300, 250]]) { OPS.lamThin(S, sim, { I, target: T, overtilt: 1.5 }); passes.push({ I, T, ...lamQuality(sim.lam) }); }
+  await face('250');
+  for (const [I, T] of [[80, 130], [50, 100]]) { OPS.lamThin(S, sim, { I, target: T, overtilt: 1.5 }); passes.push({ I, T, ...lamQuality(sim.lam) }); }
+  await face('100');
+  OPS.lamPolish(S, sim, 5); passes.push({ polish: 5, ...lamQuality(sim.lam) });
+  OPS.lamPolish(S, sim, 2); passes.push({ polish: 2, ...lamQuality(sim.lam) });
+  await face('polished');
+  numbers.passes = passes;
+  // what goes wrong: no over-tilt (a wedge), too much current when thin (bending), too far (a hole)
+  const wrong = async (tag, f) => { sim.lam = Object.assign(newLamella(() => 0.5), { step: 6, t_top: 1000, wedge: 1.6, amorph: [22, 22], capLeft: 1.1, liftedOut: true, onGrid: true }); f(); await face(tag); return lamQuality(sim.lam); };
+  numbers.wedge = await wrong('wedge', () => { OPS.lamThin(S, sim, { I: 800, target: 500, overtilt: 0 }); OPS.lamThin(S, sim, { I: 300, target: 150, overtilt: 0 }); });
+  numbers.bent = await wrong('bent', () => { OPS.lamThin(S, sim, { I: 800, target: 500, overtilt: 1.5 }); OPS.lamThin(S, sim, { I: 2500, target: 200, overtilt: 1.5 }); });
+  numbers.hole = await wrong('hole', () => { OPS.lamThin(S, sim, { I: 300, target: 300, overtilt: 1.5 }); OPS.lamThin(S, sim, { I: 80, target: 10, overtilt: 1.5 }); });
+  // damage depth per species and voltage (glancing incidence on a lamella face ≈ half the normal-incidence depth)
+  numbers.damage = {};
+  for (const ion of ['Ga', 'Xe', 'Ar']) numbers.damage[ion] = Object.fromEntries([30, 16, 8, 5, 2].map((kV) => [kV, +(0.5 * P.ionRange(ion, 'Si', kV).damage).toFixed(1)]));
+  numbers.probe = Object.fromEntries(['Ga', 'Xe'].map((ion) => [ion, Object.fromEntries(P.ION[ion].currents.map((I) => [I, +P.ionProbe(ion, I, 30).d.toFixed(0)]))]));
+  numbers.ptRate = [1, 2, 4, 6, 10, 20, 50].map((J) => ({ J, net: +P.depositRate('Pt', 'ion', 'Ga', 30, J).net.toFixed(3) }));
+}
+
+// ---------------------------------------------------------------- SOP-02 scripting
+async function scripting() {
+  let { S, sim } = fresh();
+  OPS.specState(S, sim, 'ni'); OPS.modeState(S, sim, 'bse', 'se'); Object.assign(S, { kV: 15, current: 1000, tilt: 52, fov: 120 }); sim.invalidate('all');
+  settle(sim, S); draw(sim, S); await shot(mCv, 'py_quick_sem');
+  OPS.modeState(S, sim, 'fib', 'se'); S.icur = 25; sim.invalidate('all'); settle(sim, S); draw(sim, S); await shot(mCv, 'py_quick_ion');
+  // milling rates: five species into the chip
+  ({ S, sim } = fresh());
+  OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'mill', 'se'); Object.assign(S, { fov: 64, cx: 0, cy: 0 });
+  numbers.rates = [];
+  ['Ga', 'Xe', 'Ar', 'N', 'O'].forEach((ion, k) => {
+    OPS.setIon(S, sim, ion); S.icur = P.nearestCurrent(ion, 4000);
+    const p = OPS.addPattern(S, sim, { shape: 'rect', x: -24 + 12 * k, y: 0, w: 6, h: 6, depth: 2 });
+    OPS.runQueue(sim);
+    const m = sim.mill.measure(p);
+    numbers.rates.push({ ion, current_pA: p.I, depth_um: +m.maxDepth.toFixed(2), Yv: +m.Yv.toFixed(3), time_s: +p.t.toFixed(0) });
+  });
+  OPS.setIon(S, sim, 'Ga'); settle(sim, S); draw(sim, S); await shot(mCv, 'py_rates_ion');
+  // cross-section, as in examples/cross_section.py
+  ({ S, sim } = fresh());
+  OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'mill', 'se'); Object.assign(S, { cx: 6, cy: 6, fov: 34, tilt: 52 });
+  OPS.addPattern(S, sim, { kind: 'dep', beam: 'ion', gas: 'Pt', x: 6, y: 7.2, w: 16, h: 1.8, depth: 1.2, I: 800 }); OPS.runQueue(sim);
+  OPS.addPattern(S, sim, { shape: 'rcs', x: 6, y: 1.9, w: 16, h: 10, depth: 8, I: 9000, face: 1 }); OPS.runQueue(sim);
+  OPS.addPattern(S, sim, { shape: 'ccs', x: 6, y: 6.2, w: 15.5, h: 1.2, depth: 8, I: 800, face: 1 }); OPS.runQueue(sim);
+  S.fov = 16; sim.invalidate('fov'); settle(sim, S); draw(sim, S);
+  await shot(mCv, 'py_xsec_ion'); await shot(sCv, 'py_xsec_sem', [0, 0, sCv.height, sCv.height]);
+  numbers.xsec = analyze(sim, S, 'measure_mill').result;
+  // ion focus challenge: three focus settings
+  ({ S, sim } = fresh());
+  OPS.specState(S, sim, 'sn'); OPS.modeState(S, sim, 'fib', 'se'); Object.assign(S, { ion: 'Ga', icur: 8, fov: 2.4, cx: -1.4, cy: 2.2 });
+  S.mis = { iFocus: 60, iStig: -sim.iastig };
+  for (const [tag, f] of [['far', 0], ['near', 40], ['best', 60]]) { S.ifocus = f; sim.invalidate('ifocus'); settle(sim, S); draw(sim, S); await shot(mCv, `py_focus_${tag}`); }
+}
+
+// ---------------------------------------------------------------- covers: the 3D instrument
+async function covers() {
+  const g = $('#g'), scene = new Scene3D(g, $('#lbl'));
+  const { S, sim } = fresh();
+  scene.resize(1400, 900, { left: 0, right: 0, bottom: 0, top: 0 });
+  S.showLabels = false;
+  const render = async (name, setup, cam) => {
+    setup(); settle(sim, S);
+    scene.camera.position.set(...cam.pos); scene.controls.target.set(...cam.target);
+    for (let i = 0; i < 120; i++) scene.update(1 / 30, S, sim);
+    await shot(g, name);
+  };
+  await render('lo_cover', () => { OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'lam', 'se'); sim.lam.step = 6; sim.lam.liftedOut = true; }, { pos: [9, 6, 10], target: [0, 2.4, -1] });
+  await render('py_cover', () => { OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'mill', 'se'); OPS.setIon(S, sim, 'Xe'); S.icur = 60000; OPS.addPattern(S, sim, { shape: 'rcs', w: 16, h: 8, depth: 6 }); sim.mill.start(); }, { pos: [16, 8.5, 15], target: [0, 3.2, -1.6] });
+}
+
+try {
+  log('lift-out…'); await liftout();
+  log('scripting…'); await scripting();
+  log('covers…'); await covers();
+  await post('numbers.json', JSON.stringify(numbers, null, 1), 'application/json');
+  log('done'); await fetch('/done', { method: 'POST' });
+} catch (e) { log(`error: ${e.message}`); await fetch('/done', { method: 'POST', body: `error: ${e.stack}` }); }
+</script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 import fibview as fv
 
 fib = fv.connect()
-fib.set(mode="se", specimen="ni", kV=5, tilt_deg=52, fov_um=120)
+fib.set(mode="bse", specimen="ni", kV=15, current_pA=1000, tilt_deg=52, fov_um=120)
 sem = fib.acquire()
-fv.show(sem, "SEM: secondary electrons, polished nickel")
+fv.show(sem, "SEM: backscattered electrons, polished nickel")
 
 fib.set(mode="fib", ion="Ga", ion_current_pA=25)
 ion = fib.acquire()

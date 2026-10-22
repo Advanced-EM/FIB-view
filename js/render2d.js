@@ -482,7 +482,7 @@ const ionCol = (S) => P.ION[S.ion].color;
 const fmtI = P.fmtCurrent;
 // projection of sample (x, y, Z) into an image of the given beam angle: returns canvas pixels
 export function projector(sim, S, theta, W, H) {
-  const c = Math.cos(theta), s = Math.sin(theta), zc = sim.mill.surface(S.cx, S.cy).Z, vC = S.cy * c + (S.ez + zc) * s;
+  const c = Math.cos(theta), s = Math.sin(theta), zc = sim.spec.top(S.cx, S.cy), vC = S.cy * c + (S.ez + zc) * s;
   const to = (x, y, Z = 0) => [W / 2 + ((x - S.cx) / S.fov) * W, H / 2 - ((y * c + (Z + S.ez) * s - vC) / S.fov) * H];
   const from = (X, Y, Z = 0) => [S.cx + ((X - W / 2) / W) * S.fov, ((H / 2 - Y) / H) * S.fov / c + vC / c - ((Z + S.ez) * s) / c];
   return { to, from, c, s, vC };
@@ -584,7 +584,7 @@ function drawMill(sim, S, m, s) {
   const a = sim.mill.active;
   label(ctx, `ion view · ${P.ION[S.ion].name} ${S.ikV} kV · ${fmtI(S.icur)} · tilt ${S.tilt}°${S.mode === 'gis' ? ` · ${P.DEP_GAS[S.depGas].name}` : S.gas !== 'none' ? ` · ${S.gas}` : ''}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
   if (a) label(ctx, `${a.kind === 'dep' ? 'DEPOSITING' : 'MILLING'} #${a.id} · ${Math.round(a.done * 100)} % · ${(a.t / 60).toFixed(1)} / ${(a.tEst / 60).toFixed(1)} min${sim.millAccel > 1.5 ? ` · ×${Math.round(sim.millAccel)}` : ''}`, 8 * dpr, 16 * dpr, dpr, { color: C.warm });
-  else if (!sim.mill.patterns.some((p) => p.kind !== 'img')) label(ctx, 'drag on the image to draw a pattern', W / 2, H / 2, dpr, { color: C.text, align: 'center' });
+  else if (!layout.quiet && !sim.mill.patterns.some((p) => p.kind !== 'img')) label(ctx, 'drag on the image to draw a pattern', W / 2, H / 2, dpr, { color: C.text, align: 'center' });
   else if (sim.mill.queued.length) label(ctx, `${sim.mill.queued.length} pattern(s) queued: press Start`, 8 * dpr, 16 * dpr, dpr, { color: C.accent });
   // secondary: the electron image of the same place, and a profile through the pattern
   const q = s.ctx, d = s.dpr, sz = Math.min(s.H, s.W * 0.56);

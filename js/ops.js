@@ -43,6 +43,8 @@ export function modeState(S, sim, m, prev = S.mode) {
     if (m === 'gis') S.icur = P.nearestCurrent(S.ion, clamp(4 * S.patW * S.patH, 10, S.ion === 'Ga' ? 3000 : 15000)); // ~4 pA/µm² for Pt
     if (m === 'sv') { S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 800 : 15000); S.kV = Math.min(S.kV, 3); S.current = Math.max(S.current, 400); }
     if (m === 'lam' && S.spec !== 'chip') specState(S, sim, 'chip');
+    // lift-out sites are coated (a few nm of carbon or Pt) so the oxide does not charge under either beam
+    if (m === 'lam') S.coated = true;
     if (m === 'lam') { S.fov = 30; S.cx = SITE.chip[0]; S.cy = SITE.chip[1]; S.kV = 5; }
   }
   if (m === 'mc' && prev && ION_MODES.includes(prev)) S.mcBeam = 'ion';
@@ -89,7 +91,7 @@ export function lamStep(S, sim) {
   const id = LAM_STEPS[L.step].id, ids = [];
   const add = (o) => { const p = addPattern(S, sim, o); ids.push(p.id); return p; };
   if (id === 'ebeamPt') add({ kind: 'dep', beam: 'e', gas: 'Pt', shape: 'rect', x: x0, y: y0, w: 14, h: 2, depth: 0.25, I: 3200, label: 'e-beam Pt' });
-  if (id === 'ionPt') add({ kind: 'dep', beam: 'ion', gas: 'Pt', shape: 'rect', x: x0, y: y0, w: 14, h: 2, depth: 1.4, I: P.nearestCurrent(S.ion, ga ? 300 : 1000), label: 'ion-beam Pt' });
+  if (id === 'ionPt') add({ kind: 'dep', beam: 'ion', gas: 'Pt', shape: 'rect', x: x0, y: y0, w: 14, h: 2, depth: 1.4, I: P.nearestCurrent(S.ion, 4 * 14 * 2), label: 'ion-beam Pt' }); // ~4 pA/µm²
   if (id === 'trenches') {
     const I = P.nearestCurrent(S.ion, ga ? 9000 : 60000);
     add({ shape: 'rcs', x: x0, y: y0 + 0.75 + 5, w: 16, h: 10, depth: 7, I, face: -1, label: 'upper trench' });
@@ -157,12 +159,12 @@ export function applyOp(S, sim, op, hooks = {}) {
       const k = op.k;
       if (k === 'fov') S.fov = clamp(op.v, spec.fovMin, spec.fovMax);
       else if (k === 'tilt') S.tilt = clamp(Math.round(op.v), 0, 72);
-      else if (k === 'focus' || k === 'ifocus') S[k] = op.v;
+      else if (['focus', 'ifocus', 'stig', 'istig'].includes(k)) S[k] = op.v;
       else if (k === 'clarity') { if (['edu', 'real'].includes(op.v)) S.clarity = op.v; }
       else if (['flood', 'rocking', 'showLabels', 'coated', 'realTime'].includes(k)) S[k] = !!op.v;
       else if (k in S && typeof S[k] === typeof op.v) S[k] = op.v;
       op.v = S[k];
-      sim.invalidate(k === 'focus' || k === 'ifocus' ? k : k === 'tilt' ? 'tilt' : 'all');
+      sim.invalidate(['focus', 'ifocus', 'stig', 'istig'].includes(k) ? k : k === 'tilt' ? 'tilt' : 'all');
       break;
     }
     case 'chip':

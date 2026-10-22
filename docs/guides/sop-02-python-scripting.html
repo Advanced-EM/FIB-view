@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-02 Python scripting · Sculpting with Ions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-02</span><span>Automation for focused ion beams</span></div>
+    <h1>Python<br><em>scripting</em></h1>
+    <p class="sub" style="max-width:5.6in">Script the FIB-view dual beam from Python: in the exhibit's IDE, headless on a desktop, or driving an open exhibit. Mill and deposit, record NumPy data from both beams, run analyses, and test automation against a hidden error.</p>
+  </div>
+  <div class="shot"><img src="fig/py_cover.jpg" alt=""></div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-02</b>, version 1.0, October 2026<br>For users who script, and developers of FIB automation<br>Simulation only: nothing here controls a real instrument</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Scope and overview</span></div>
+  <h2>Scope and overview</h2>
+  <p class="lede">The <code>fibview</code> Python package controls the simulated dual beam: it changes the settings of both beams, mills and deposits patterns to completion, records detector data as NumPy arrays with calibrations, runs analyses that also report the simulator's true values, and sets hidden errors (challenges) that score an algorithm against the truth. The same script runs in three places.</p>
+  <table class="t" style="margin-top:8pt">
+    <tr><th>Where</th><th>Open with</th><th>Needs</th><th>Best for</th></tr>
+    <tr><td><b>Python IDE in the exhibit</b></td><td><code>fv.connect()</code></td><td>A browser; Python runs in it (Pyodide)</td><td>Teaching, quick experiments, watching the exhibit respond</td></tr>
+    <tr><td><b>Desktop, headless</b></td><td><code>fv.connect()</code> or <code>fv.connect("headless")</code></td><td>Python 3.9+, NumPy, Node.js 20+</td><td>Long milling runs, batch data, benchmarks, CI tests</td></tr>
+    <tr><td><b>Desktop, live</b></td><td><code>fv.connect("live")</code></td><td>The above, <code>websockets</code>, an open exhibit</td><td>Desktop tools driving the exhibit on screen</td></tr>
+  </table>
+  <div class="cols">
+    <div>
+      <h3>Steps</h3>
+      <table class="t">
+        <tr><td class="n">1</td><td>Run a first script in the exhibit's IDE</td></tr>
+        <tr><td class="n">2</td><td>Install the package on a desktop</td></tr>
+        <tr><td class="n">3</td><td>Learn the calls</td></tr>
+        <tr><td class="n">4</td><td>Mill, deposit and measure</td></tr>
+        <tr><td class="n">5</td><td>Test an automation algorithm with challenges</td></tr>
+        <tr><td class="n">6</td><td>Batch data and regression tests</td></tr>
+      </table>
+      <h3>Terms used</h3>
+      <p><b>Instrument time</b> is the time the operation would take on the instrument: <code>mill()</code> runs a pattern to completion at once and reports it. A <b>challenge</b> is a training task's hidden error, set up for a script instead of a person: the readings (focus, stage Z) differ from the truth by a hidden amount.</p>
+    </div>
+    <div>
+      <h3>Rules</h3>
+      <ul class="plain">
+        <li>While a person is doing a training task in the exhibit, scripts cannot change settings. The exhibit refuses, so recorded practice stays human.</li>
+        <li>Challenge runs are never recorded or shared with the research dataset.</li>
+        <li>Ending a challenge restores the instrument as it was before.</li>
+        <li>In the IDE, the exhibit pauses while a script runs. Keep long milling loops on a desktop.</li>
+        <li>Live mode listens on 127.0.0.1, on port 8792 (the one fibview-mcp uses). Run one or the other, or choose another port.</li>
+      </ul>
+      <div class="note"><b>Note.</b> An algorithm that reads <code>score()</code> or <code>reveal()</code> while it runs is not tested by the challenge. Call them only after it has finished.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · step 1 -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Step 1 of 6</span></div>
+  <div class="step">Step 1</div>
+  <h2>Run a first script in the exhibit</h2>
+  <div class="side" style="grid-template-columns:1fr 2.6in">
+    <div>
+      <ol class="proc">
+        <li>Open the exhibit in a current browser on a computer. Select the terminal button at the top of the controls, or <b>Controls → Python scripting → Open the Python IDE</b>, or press <kbd>P</kbd>.</li>
+        <li>Wait for the status line to show the Python version. The first time, about 15 MB downloads; later it opens in a few seconds.</li>
+        <li>Select <b>Examples → Quick start: image with both beams</b>, then <b>Run</b> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or <kbd>⌘</kbd>+<kbd>Enter</kbd> on a Mac).</li>
+        <li>The exhibit images polished nickel with electrons (BSE), then with gallium ions. Both images appear in the output (Figs. 1, 2).</li>
+        <li>Edit and run again. <b>Save</b> writes a <code>.py</code> file; <b>Open</b> loads one; <b>Help</b> lists the calls.</li>
+      </ol>
+<pre><code>import fibview as fv
+
+fib = fv.connect()
+fib.set(mode="bse", specimen="ni", kV=15, current_pA=1000,
+        tilt_deg=52, fov_um=120)
+sem = fib.acquire()
+fv.show(sem, "SEM: backscattered electrons")
+
+fib.set(mode="fib", ion="Ga", ion_current_pA=25)
+ion = fib.acquire()
+fv.show(ion, "Ion-induced electrons")
+print(fib.state()["ion"])</code></pre>
+      <p class="result"><b>Result.</b> Two NumPy images of the same field. The ion image shows far stronger grain contrast: ions channel down the open directions of some grains.</p>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/py_quick_sem.jpg" alt=""><figcaption><b>Fig. 1.</b> BSE at 15 kV: grains and twins by electron channelling; dark alumina inclusions.</figcaption></figure>
+      <figure class="fig"><img src="fig/py_quick_ion.jpg" alt=""><figcaption><b>Fig. 2.</b> The same field in Ga⁺ ion-induced electrons.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · steps 2–3 -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Steps 2 and 3 of 6</span></div>
+  <div class="step">Steps 2 and 3</div>
+  <h2>Install on a desktop, learn the calls</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Install Node.js 20 or later (nodejs.org) and Python 3.9 or later.</li>
+        <li>Get the repository and install the package:</li>
+      </ol>
+<pre><code>git clone https://github.com/Advanced-EM/FIB-view
+cd FIB-view
+pip install -e "tools/fibview-py[live,plot]"
+python tools/fibview-py/examples/quickstart.py</code></pre>
+      <ol class="proc" start="3">
+        <li><code>fv.connect()</code> starts the simulator in a Node.js process: no browser. If the package lives outside the repository, set <code>FIBVIEW_ROOT</code> to the repository folder.</li>
+        <li>To drive an open exhibit instead, use <code>fv.connect("live")</code>, then select <b>Connect agent</b> in the exhibit (Controls → Voice and agent) within two minutes.</li>
+      </ol>
+      <div class="note"><b>Note.</b> <code>fv.show()</code> draws in the IDE's output; on a desktop it uses matplotlib.</div>
+    </div>
+    <div>
+      <h3>The calls</h3>
+      <table class="t">
+        <tr><th>Call</th><th>Does</th></tr>
+        <tr><td><code>set(**s)</code></td><td>mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stig, stage_z_um, ion, ion_kV, ion_current_pA, ion_focus_um, ion_stig, detector, gas, realistic, beam</td></tr>
+        <tr><td><code>state()</code></td><td>Both beams, probe sizes, stage, patterns, the sputter yield under the beam</td></tr>
+        <tr><td><code>command(text)</code></td><td>The exhibit's grammar: "switch to xenon"</td></tr>
+        <tr><td><code>mill(...)</code></td><td>A pattern, run to completion: depth, volume, charge, measured yield, time</td></tr>
+        <tr><td><code>deposit(...)</code></td><td>Pt, C or W with the ion or electron beam</td></tr>
+        <tr><td><code>lamella(...)</code></td><td>The lift-out workflow: <code>"next"</code>, <code>"thin"</code>, <code>"polish"</code></td></tr>
+        <tr><td><code>acquire()</code></td><td>An Acquisition: <code>.image</code>, <code>["sem_image"]</code>, <code>.arrays</code>, <code>.calibration</code>, <code>.save()</code></td></tr>
+        <tr><td><code>analyze(name)</code></td><td>measure_resolution, measure_mill, sputter_yield, fit_eds, ebsd_stats, sv_fractions, lamella_thickness, ion_range</td></tr>
+        <tr><td><code>challenge(id)</code></td><td>sem-focus-stig, fib-focus-stig, eucentric; then <code>score()</code>, <code>reveal()</code>, <code>end_challenge()</code></td></tr>
+      </table>
+      <p style="font-size:8.4pt;color:var(--muted)">Modes: se, inlens, bse, ebsd, tkd, eds, fib, mill, gis, sv, lam, mc. Specimens: chip, ni, sn, nmc, xs. Ions: Ga, Xe, Ar, N, O. <code>info()</code> lists them all.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · step 4 -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Step 4 of 6</span></div>
+  <div class="step">Step 4</div>
+  <h2>Mill, deposit and measure</h2>
+  <div class="cols">
+    <div>
+      <h3>Compare ion species</h3>
+      <p>Mill the same 6 × 6 µm box, asked to reach 2 µm in silicon, with each species at ~4 nA (example <code>mill_rates.py</code>):</p>
+<pre><code>fib.set(specimen="chip", mode="mill")
+for k, ion in enumerate(["Ga", "Xe", "Ar", "N", "O"]):
+    fib.set(ion=ion, ion_current_pA=4000)
+    r = fib.mill(shape="rect", w=6, h=6, depth=2,
+                 x=-24 + 12 * k, y=0)
+    print(ion, r["maxDepth"], r["Yv"], r["time_s"])</code></pre>
+      <table class="t">
+        <tr><th>Ion</th><th>Current</th><th>Depth</th><th>Yield</th><th>Time</th></tr>
+        <tr><td>Ga⁺</td><td>2.5 nA</td><td>2.28 µm</td><td>0.216 µm³/nC</td><td>114 s</td></tr>
+        <tr><td>Xe⁺</td><td>4 nA</td><td>2.18 µm</td><td>0.288 µm³/nC</td><td>54 s</td></tr>
+        <tr><td>Ar⁺</td><td>4 nA</td><td>2.33 µm</td><td>0.141 µm³/nC</td><td>113 s</td></tr>
+        <tr><td>N⁺</td><td>4 nA</td><td>2.02 µm</td><td>0.038 µm³/nC</td><td>366 s</td></tr>
+        <tr><td>O⁺</td><td>4 nA</td><td>1.80 µm</td><td>0.042 µm³/nC</td><td>309 s</td></tr>
+      </table>
+      <p style="font-size:8.4pt;color:var(--muted)">The gallium column's nearest aperture to 4 nA is 2.5 nA. Each pattern's dose comes from the silicon application file, so the depths are similar and the times show the speed. The oxide and copper of the chip mill at their own rates.</p>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/py_rates_ion.jpg" alt=""><figcaption><b>Fig. 3.</b> The five boxes in the ion view, Ga to O from left to right.</figcaption></figure>
+      <h3>A cross-section</h3>
+<pre><code>fib.deposit("Pt", x=6, y=7.2, w=16, h=1.8, thickness=1.2)
+fib.set(ion="Ga", ion_current_pA=9000)
+fib.mill(shape="rcs", x=6, y=1.9, w=16, h=10, depth=8)
+fib.set(ion_current_pA=800)
+fib.mill(shape="ccs", x=6, y=6.2, w=15.5, h=1.2, depth=8)
+a = fib.acquire()   # a["sem_image"]: the face at 52°</code></pre>
+      <div class="figs2">
+        <figure class="fig"><img src="fig/py_xsec_ion.jpg" alt=""><figcaption><b>Fig. 4.</b> Ion view into the trench.</figcaption></figure>
+        <figure class="fig"><img src="fig/py_xsec_sem.jpg" alt=""><figcaption><b>Fig. 5.</b> SEM at 52°: the face.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · step 5 -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Step 5 of 6</span></div>
+  <div class="step">Step 5</div>
+  <h2>Test automation with challenges</h2>
+  <div class="cols">
+    <div>
+      <p>A challenge hides an error, as a training task does for a person. Your algorithm sees only the images and the readings; <code>score()</code> judges the true result afterwards. Example <code>auto_focus_ion.py</code> focuses the ion beam on tin spheres. Every image it takes sputters the sample, and the score counts that damage too. Focus first, then the stigmator, then focus again: astigmatism moves the best focus. With seed 7 it scores 100: 4 nm of blur on a 5.3 nm probe, after 37 frames that removed 4 nm of tin.</p>
+<pre><code>import numpy as np, fibview as fv
+fib = fv.connect()
+fib.challenge("fib-focus-stig", seed=7)
+
+def sharpness():
+    img = fib.acquire(steps=2)["ion_image"]
+    gy, gx = np.gradient(img.astype(float))
+    return np.mean(np.hypot(gx, gy)) / img.mean()
+
+def search(key, lo, hi, n=7):
+    best = None
+    for v in np.linspace(lo, hi, n):
+        fib.set(**{key: float(v)})
+        s = sharpness()
+        if best is None or s > best[1]:
+            best = (v, s)
+    fib.set(**{key: float(best[0])})
+    return best
+
+f, _ = search("ion_focus_um", -100, 100, n=9)
+a, _ = search("ion_stig", -60, 60, n=9)
+search("ion_stig", a - 10, a + 10)
+f, _ = search("ion_focus_um", f - 25, f + 25)
+search("ion_focus_um", f - 6, f + 6, n=5)
+print(fib.score())     # blur vs the probe, imaging damage
+print(fib.reveal())    # the hidden error
+fib.end_challenge()</code></pre>
+      <table class="t">
+        <tr><th>Challenge</th><th>Hidden</th><th>Scored on</th></tr>
+        <tr><td><code>sem-focus-stig</code></td><td>Electron defocus, astigmatism</td><td>Blur relative to the probe</td></tr>
+        <tr><td><code>fib-focus-stig</code></td><td>Ion defocus, astigmatism</td><td>Blur, and material removed by imaging</td></tr>
+        <tr><td><code>eucentric</code></td><td>Stage height; the Z reading is offset</td><td>Distance from the coincidence point</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/py_focus_far.jpg" alt=""><figcaption><b>Fig. 6.</b> 60 µm from focus: the ion probe's small convergence angle (~0.4 mrad) still blurs the tin spheres.</figcaption></figure>
+      <figure class="fig"><img src="fig/py_focus_best.jpg" alt=""><figcaption><b>Fig. 7.</b> In focus: the edges are as sharp as the 5 nm probe allows.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>6</span></div>
+</section>
+
+<!-- 7 · step 6 -->
+<section class="page">
+  <div class="run"><span>SOP-02 Python scripting</span><span>Step 6 of 6</span></div>
+  <div class="step">Step 6</div>
+  <h2>Batch data and regression tests</h2>
+  <div class="cols">
+    <div>
+      <h3>Save data for analysis</h3>
+      <p><code>acquire()</code> returns every array of the current mode and its metadata (pixel sizes, beams, patterns with their depth maps, the lamella's true geometry). <code>a.save("run.npz")</code> writes the same NumPy archive as the exhibit's Export button.</p>
+<pre><code>import numpy as np, fibview as fv
+fib = fv.connect()
+fib.set(specimen="nmc", mode="sv")   # slice &amp; view
+a = fib.acquire()
+stack = a["stack"]                   # slices × depth × x
+truth = a["truth_labels"]            # the true phases
+print(a.calibration["fractions"])
+a.save("cathode.npz")</code></pre>
+      <h3>Without Python</h3>
+<pre><code>node tools/headless.mjs --mode mill --spec chip \
+     --ion Xe --mill rcs:16x8x6 --out xsec.npz</code></pre>
+    </div>
+    <div>
+      <h3>Regression tests</h3>
+      <p>Challenges take a seed, so the same hidden error comes back every run: an automation routine can be tested in CI:</p>
+<pre><code># tests/test_autofocus.py
+import fibview as fv
+
+def test_ion_autofocus():
+    with fv.connect("headless") as fib:
+        fib.challenge("fib-focus-stig", seed=7)
+        my_autofocus(fib)
+        s = fib.score()
+        assert s["success"], s</code></pre>
+      <p>The package's own tests: <code>pytest tools/fibview-py/tests</code>.</p>
+      <h3>For AI agents</h3>
+      <p>The same instrument is available to AI agents through the MCP server <code>tools/fibview-mcp</code>: headless <code>simulate</code>, <code>mill</code> and <code>ion_physics</code> tools, and live control of an open exhibit.</p>
+      <div class="note"><b>Note.</b> Simulated results are not measurements. Use them to develop and test methods; validate on a real instrument with real standards.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>7</span></div>
+</section>
+
+<!-- 8 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Open the IDE</h2>
+  <p class="lede" style="color:#c3d3e1">The link opens FIB-view with the Python IDE and the Quick start example loaded. Select Run.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">Python IDE with the Quick start example</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Use a computer: the IDE needs a keyboard and a larger screen.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>The package</h3><p>github.com/Advanced-EM/FIB-view<br>tools/fibview-py</p></div>
+    <div><h3>Related procedures</h3><p>SOP-01 TEM lamella lift-out: the workflow <code>lamella()</code> runs.</p></div>
+    <div><h3>Pyodide</h3><p>Python in the browser: pyodide.org</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-02 Python scripting, version 1.0, October 2026<br>Simulation only. Nothing here controls a real instrument.<br>Results from the simulator are not measurements of a real specimen.</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/FIB-view/?script=quickstart';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>

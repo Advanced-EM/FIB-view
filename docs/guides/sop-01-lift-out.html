@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-01 TEM lamella lift-out · Sculpting with Ions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-01</span><span>Focused ion beam · dual beam FIB-SEM</span></div>
+    <h1>TEM lamella<br><em>lift-out</em></h1>
+    <p class="sub" style="max-width:5.6in">Cut a slice about 100 nm thin out of a chosen spot of a microchip and carry it to a TEM grid: protective cap, trenches, cleaning, J-cut, lift-out, thinning and low-kV polishing, with gallium or plasma ions.</p>
+  </div>
+  <div class="shot"><img src="fig/lo_cover.jpg" alt=""></div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-01</b>, version 1.0, October 2026<br>For trainees on a dual-beam FIB-SEM, practising in FIB-view<br>Simulation only: figures and numbers are computed by FIB-view</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Scope and overview</span></div>
+  <h2>Scope and overview</h2>
+  <p class="lede">A TEM lamella is a slab of the specimen thin enough for electrons to pass through: below ~100 nm for high-resolution work. The focused ion beam cuts it out of a chosen site, here a bond pad of a microchip over three copper wiring levels, and thins it on a TEM grid. The electron beam watches every step without damaging the site.</p>
+  <table class="t" style="margin-top:8pt">
+    <tr><th></th><th>Step</th><th>Pattern (Ga⁺, 30 kV)</th><th>Current</th><th>Time</th></tr>
+    <tr><td class="n">1</td><td>Site, eucentric height, coating</td><td>none</td><td>imaging only</td><td>5 min</td></tr>
+    <tr><td class="n">2</td><td>Electron-beam Pt</td><td>14 × 2 µm, 0.25 µm thick</td><td>3.2 nA e⁻, 5 kV</td><td>3.4 min</td></tr>
+    <tr><td class="n">3</td><td>Ion-beam Pt cap</td><td>14 × 2 µm, 1.4 µm thick</td><td>100 pA (≈4 pA/µm²)</td><td>8.5 min</td></tr>
+    <tr><td class="n">4</td><td>Bulk trenches</td><td>2 regular cross-sections 16 × 10 µm, 7 µm deep</td><td>9 nA</td><td>2 × 4.6 min</td></tr>
+    <tr><td class="n">5</td><td>Cleaning cross-sections</td><td>2 × 15 × 2.4 µm, to a 1 µm wall</td><td>0.8 nA</td><td>2 × 18 min</td></tr>
+    <tr><td class="n">6</td><td>J-cut and lift-out</td><td>side and bottom cuts; needle, Pt welds</td><td>2.5 nA</td><td>~12 min</td></tr>
+    <tr><td class="n">7</td><td>Thinning</td><td>both faces, ±1.5° over-tilt</td><td>800 → 50 pA</td><td>~14 min</td></tr>
+    <tr><td class="n">8</td><td>Low-kV polish</td><td>both faces at 5 kV, then 2 kV</td><td>50 / 25 pA</td><td>~6 min</td></tr>
+  </table>
+  <p style="font-size:8.6pt;color:var(--muted)">Times are instrument time for the FIB-view chip, computed by the simulator (about 1.5 h in all). On a real instrument add navigation, imaging and drift checks. With a xenon plasma FIB, the trenches take minutes at 60 nA; thinning and polishing follow the same steps.</p>
+  <div class="cols">
+    <div>
+      <h3>Terms used</h3>
+      <p><b>Coincidence point</b>: where the electron and ion beams cross, 52° apart. A sample at <b>eucentric height</b> sits on it: tilting does not move the site, and both beams see the same spot.</p>
+      <p><b>Regular cross-section (RCS)</b>: a staircase trench, deepest at its face. <b>Cleaning cross-section (CCS)</b>: line-by-line milling toward the face, which leaves it flat and clean.</p>
+      <p><b>Application file</b>: the material the software assumes to turn a depth into a dose (silicon here). Other materials end up deeper or shallower.</p>
+    </div>
+    <div>
+      <h3>Rules</h3>
+      <ul class="plain">
+        <li>Never image the site with ions before it is capped. Every ion frame sputters and implants.</li>
+        <li>Step the current down with the thickness: the beam's tails must never reach through the lamella.</li>
+        <li>Image the thin lamella with electrons only, and at low dose.</li>
+        <li>Stop at the target thickness. You cannot add material back.</li>
+      </ul>
+      <div class="note caution"><b>Caution.</b> On a real instrument, follow your facility's safety rules for the gas injection system and the manipulator, and the manufacturer's documentation.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · step 1 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Step 1 of 8</span></div>
+  <div class="step">Step 1</div>
+  <h2>Site, eucentric height and coating</h2>
+  <div class="side">
+    <div>
+      <ol class="proc">
+        <li>Load the <b>Microchip</b> and open <b>Lamella</b> mode (key <kbd>-</kbd>). The stage moves to the coincidence point, tilts to <b>52°</b>, and centres a bond pad: the site.</li>
+        <li>Find the eucentric height at 0° first. Centre a feature in the SEM image, tilt to ~10°, and bring it back with <b>Stage Z</b>, not with the stage X/Y. Repeat at 52°. (Training task: <i>Dual beam: find the eucentric height</i>.)</li>
+        <li>Check that the site is <b>coated</b> (a few nm of carbon or Pt). Uncoated oxide charges under both beams: the electrons make it bloom and streak, the ions make it dark and drift.</li>
+        <li>Image with ions only at the lowest current that shows the pads (10–25 pA) and only briefly. The ion image (Fig. 1) shows the pads' grains by channelling contrast.</li>
+        <li>Choose the lamella position: the line that the face of the lamella will follow. Here it runs across the pad and the copper lines below it.</li>
+      </ol>
+      <p class="result"><b>Result.</b> The site is at eucentric height and centred in both beams.</p>
+      <div class="note"><b>Note.</b> At 52° an error of 10 µm in height shifts the ion spot by 7.9 µm from where the SEM shows it: the trenches would land beside the site.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/lo_site_ion.jpg" alt=""><figcaption><b>Fig. 1.</b> Ion image of the site (Ga⁺ 30 kV, 25 pA, 52°): Al bond pads in oxide. Grains differ in brightness by ion channelling.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · steps 2–3 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Steps 2 and 3 of 8</span></div>
+  <div class="step">Steps 2 and 3</div>
+  <h2>The protective platinum cap</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Insert the Pt gas needle. Draw a 14 × 2 µm rectangle over the lamella line.</li>
+        <li><b>Electron-beam Pt first</b>: 0.25 µm at 5 kV, 3.2 nA. It is slow but puts no ions into the surface.</li>
+        <li><b>Then ion-beam Pt</b>: 1.4 µm at 100 pA. Keep the current density near <b>2–6 pA/µm²</b> (Table 1): above it the beam uses up the precursor and the deposit grows slowly; far above, the ions mill instead of deposit.</li>
+        <li>Retract the needle. The cap shields the top edge from the beam's tails during all the milling to come, and reduces curtaining.</li>
+      </ol>
+      <h3>Table 1. Ion-beam Pt (Ga⁺ 30 kV): net growth per charge</h3>
+      <table class="t">
+        <tr><th>Current density</th><th>Net growth</th><th>Regime</th></tr>
+        <tr><td>1 pA/µm²</td><td>1.08 µm³/nC</td><td>reaction-limited</td></tr>
+        <tr><td>2 pA/µm²</td><td>0.93 µm³/nC</td><td rowspan="3">recommended</td></tr>
+        <tr><td>4 pA/µm²</td><td>0.73 µm³/nC</td></tr>
+        <tr><td>6 pA/µm²</td><td>0.60 µm³/nC</td></tr>
+        <tr><td>20 pA/µm²</td><td>0.23 µm³/nC</td><td>precursor-limited</td></tr>
+        <tr><td>50 pA/µm²</td><td>0.06 µm³/nC</td><td>sputtering wins</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/lo_cap_ion.jpg" alt=""><figcaption><b>Fig. 2.</b> Ion view after the cap: the Pt pattern over the bond pad.</figcaption></figure>
+      <figure class="fig"><img src="fig/lo_cap_sem.jpg" alt=""><figcaption><b>Fig. 3.</b> SEM at 52°: the cap stands ~1.6 µm above the pad.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · step 4 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Step 4 of 8</span></div>
+  <div class="step">Step 4</div>
+  <h2>Bulk trenches</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Select <b>9 nA</b> (Ga⁺). With xenon, 60 nA removes the same volume in a third of the time.</li>
+        <li>Draw a <b>regular cross-section</b> 16 × 10 µm on each side of the cap, leaving a 1.5 µm wall. Each staircase is deepest at its face, next to the wall.</li>
+        <li>Set 7 µm depth. Run both (about 4.6 min each).</li>
+        <li>Watch the SEM at 52° (Fig. 5): the faces appear, with the passivation, three copper levels, tungsten vias and, deeper, the silicon.</li>
+      </ol>
+      <div class="note"><b>Note.</b> The depth reached is not the depth asked: the dose comes from the silicon application file, and oxide, copper and tungsten mill at different rates. Sputtered material also redeposits in deep, narrow trenches. Check the depth on the face, not in the software.</div>
+      <h3>Table 2. Probe diameter at 30 kV</h3>
+      <table class="t">
+        <tr><th>Ga⁺ current</th><th>Probe</th><th>Xe⁺ current</th><th>Probe</th></tr>
+        <tr><td>25 pA</td><td>7 nm</td><td>30 pA</td><td>22 nm</td></tr>
+        <tr><td>100 pA</td><td>12 nm</td><td>100 pA</td><td>29 nm</td></tr>
+        <tr><td>800 pA</td><td>24 nm</td><td>1 nA</td><td>57 nm</td></tr>
+        <tr><td>2.5 nA</td><td>39 nm</td><td>15 nA</td><td>150 nm</td></tr>
+        <tr><td>9 nA</td><td>79 nm</td><td>60 nA</td><td>281 nm</td></tr>
+        <tr><td>65 nA</td><td>359 nm</td><td>500 nA</td><td>1.2 µm</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/lo_trench_ion.jpg" alt=""><figcaption><b>Fig. 4.</b> Ion view: two staircase trenches either side of the cap. The trench floors expose the copper lines at their depth.</figcaption></figure>
+      <figure class="fig"><img src="fig/lo_trench_sem.jpg" alt=""><figcaption><b>Fig. 5.</b> SEM at 52° looking into the lower trench at the lamella face.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · steps 5–6 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Steps 5 and 6 of 8</span></div>
+  <div class="step">Steps 5 and 6</div>
+  <h2>Clean the faces, cut it free, lift it out</h2>
+  <div class="cols">
+    <div>
+      <h3>Cleaning cross-sections</h3>
+      <ol class="proc">
+        <li>Select <b>0.8 nA</b>. Draw a <b>cleaning cross-section</b> 15 × 2.4 µm on each face, its face edge at the final wall position, leaving <b>~1 µm</b>.</li>
+        <li>Run both. They remove the redeposited material and the steps the bulk trenches left (Fig. 6).</li>
+      </ol>
+      <h3>J-cut</h3>
+      <ol class="proc" start="3">
+        <li>Tilt to ~7° so the beam can reach under the lamella.</li>
+        <li>At 2.5 nA, cut one side and the bottom, leaving the lamella attached at the other side by a small tab (Fig. 7).</li>
+      </ol>
+      <h3>Lift-out</h3>
+      <ol class="proc" start="5">
+        <li>Insert the manipulator needle at eucentric height. Bring its tip to touch the free end of the lamella, seen in both beams.</li>
+        <li>Weld needle and lamella with ion-beam Pt (a 1 × 1 µm pad).</li>
+        <li>Cut the remaining tab. Lift the lamella out, retract the stage, and drive to the TEM grid post.</li>
+        <li>Touch the lamella to the post, weld it with Pt on its side, and cut the needle free (Fig. 8).</li>
+      </ol>
+      <div class="note caution"><b>Caution.</b> Move the needle only in small steps near the specimen and the post. Charging or drift can throw a free lamella off the needle.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/lo_clean_sem_zoom.jpg" alt=""><figcaption><b>Fig. 6.</b> SEM at 52° after the cleaning cross-sections: a flat face below the Pt cap.</figcaption></figure>
+      <div class="figs2">
+        <figure class="fig"><img src="fig/lo_jcut_ion.jpg" alt=""><figcaption><b>Fig. 7.</b> Ion view: the J-cut.</figcaption></figure>
+        <figure class="fig"><img src="fig/lo_grid_ion.jpg" alt=""><figcaption><b>Fig. 8.</b> On the grid post, welded, ~1 µm thick.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>6</span></div>
+</section>
+
+<!-- 7 · step 7 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Step 7 of 8</span></div>
+  <div class="step">Step 7</div>
+  <h2>Thinning</h2>
+  <div class="side" style="grid-template-columns:1fr 3.3in">
+    <div>
+      <ol class="proc">
+        <li>Tilt so the ion beam grazes each face with a <b>±1.5° over-tilt</b>: one face at 52° + 1.5°, the other at 52° − 1.5°. The over-tilt cancels the beam's natural taper, which otherwise leaves the lamella wedge-shaped (Fig. 13).</li>
+        <li>Thin both faces alternately, stepping the current down with the thickness (Table 3). In FIB-view: Lamella controls, set the current and target, then <b>Thin both faces</b>.</li>
+        <li>After each pass, image the face with the SEM at <b>5 kV</b>. As the lamella gets thinner than the electrons' range, it brightens and becomes uniform (Figs. 9–11). A gradient from top to bottom means a wedge.</li>
+        <li>Stop around 100–150 nm before polishing.</li>
+      </ol>
+      <h3>Table 3. A thinning recipe (Ga⁺ 30 kV) and its true result</h3>
+      <table class="t">
+        <tr><th>Current</th><th>Target</th><th>Top / 3 µm down</th><th>Amorphous per face</th></tr>
+        <tr><td>800 pA</td><td>500 nm</td><td>501 / 512 nm</td><td>20–21 nm</td></tr>
+        <tr><td>300 pA</td><td>250 nm</td><td>249 / 260 nm</td><td>21 nm</td></tr>
+        <tr><td>80 pA</td><td>130 nm</td><td>131 / 141 nm</td><td>20–21 nm</td></tr>
+        <tr><td>50 pA</td><td>100 nm</td><td>101 / 111 nm</td><td>20–21 nm</td></tr>
+      </table>
+      <div class="note"><b>Note.</b> At 30 kV each gallium-thinned face keeps ~21 nm of amorphous, Ga-rich silicon. A 100 nm lamella then has only ~60 nm of good crystal: the reason for step 8.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig wide"><img src="fig/lo_face_1000.jpg" alt=""><figcaption><b>Fig. 9.</b> 1 µm thick: at 5 kV the face is opaque. Right: the true thickness profile (grey) with its amorphous layers (red).</figcaption></figure>
+      <figure class="fig wide"><img src="fig/lo_face_250.jpg" alt=""><figcaption><b>Fig. 10.</b> 250 nm: the thinned window starts to brighten.</figcaption></figure>
+      <figure class="fig wide"><img src="fig/lo_face_100.jpg" alt=""><figcaption><b>Fig. 11.</b> 100 nm: bright and even. Ready to polish.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>7</span></div>
+</section>
+
+<!-- 8 · step 8 -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Step 8 of 8</span></div>
+  <div class="step">Step 8</div>
+  <h2>Low-kV polish</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Lower the ion voltage to <b>5 kV</b>. Re-centre and re-focus the ion beam on the post, not on the lamella.</li>
+        <li>Polish each face at glancing incidence (over-tilt ~4–5°), 50 pA, for a few minutes: it removes most of the 30 kV damage.</li>
+        <li>Repeat at <b>2 kV</b> and ~25 pA.</li>
+        <li>Image once more at 5 kV with electrons and stop. In FIB-view, <b>Send to TKD</b> checks the crystal quality: Kikuchi patterns sharpen as the damage goes.</li>
+      </ol>
+      <h3>Table 4. Amorphous layer on a lamella face (nm), by ion and voltage</h3>
+      <table class="t">
+        <tr><th>Ion</th><th>30 kV</th><th>16 kV</th><th>8 kV</th><th>5 kV</th><th>2 kV</th></tr>
+        <tr><td>Ga⁺</td><td>22</td><td>13</td><td>8</td><td>6.5</td><td>3.9</td></tr>
+        <tr><td>Xe⁺</td><td>17</td><td>12</td><td>8</td><td>6.2</td><td>4.1</td></tr>
+        <tr><td>Ar⁺</td><td>31</td><td>18</td><td>10</td><td>7.9</td><td>4.2</td></tr>
+      </table>
+      <p style="font-size:8.4pt;color:var(--muted)">About half the depth damaged at normal incidence, from FIB-view's binary-collision Monte Carlo (ZBL potential), for silicon. Xenon's heavier ions stop sooner; argon's lighter ones go deeper at the same energy. Plasma ions also leave no gallium.</p>
+      <p class="result"><b>Result.</b> In this run: 80 nm at the top, 91 nm three micrometres down, 3.6 nm of amorphous silicon per face, ~73 nm of good crystal. Total ~1.5 h of instrument time.</p>
+    </div>
+    <div class="stack">
+      <figure class="fig wide"><img src="fig/lo_face_polished.jpg" alt=""><figcaption><b>Fig. 12.</b> After the 5 and 2 kV polish: the red amorphous layers are a few nanometres thin.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>8</span></div>
+</section>
+
+<!-- 9 · troubleshooting -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Troubleshooting</span></div>
+  <h2>When it goes wrong</h2>
+  <div class="figs3">
+    <figure class="fig wide"><img src="fig/lo_face_wedge.jpg" alt=""><figcaption><b>Fig. 13.</b> No over-tilt: 151 nm at the top but 319 nm 3 µm down. The face darkens downward.</figcaption></figure>
+    <figure class="fig wide"><img src="fig/lo_face_bent.jpg" alt=""><figcaption><b>Fig. 14.</b> 2.5 nA on a 200 nm lamella: it bent.</figcaption></figure>
+    <figure class="fig wide"><img src="fig/lo_face_hole.jpg" alt=""><figcaption><b>Fig. 15.</b> Thinned to 10 nm: a hole near the top edge.</figcaption></figure>
+  </div>
+  <table class="t" style="margin-top:12pt">
+    <tr><th>What you see</th><th>Likely cause</th><th>What to do</th></tr>
+    <tr><td>Trenches beside the site</td><td>Not at eucentric height</td><td>Redo step 1; check the ion and SEM images coincide</td></tr>
+    <tr><td>Rounded or eroded top edge</td><td>Cap too thin, or imaged with ions before capping</td><td>Thicker Pt cap; image with electrons</td></tr>
+    <tr><td>Vertical streaks on the face (curtains)</td><td>Milling through copper and oxide; no cap; plasma ions without rocking</td><td>Keep the cap; turn on the rocking mill; thin from the cap side</td></tr>
+    <tr><td>Face darkens toward the bottom</td><td>Wedge: no or too little over-tilt</td><td>Over-tilt ±1–2°; a short pass on each face</td></tr>
+    <tr><td>Lamella bends or bows</td><td>Current too high for the thickness; stress</td><td>Below 250 nm stay ≤ 300 pA; below 120 nm ≤ 80 pA</td></tr>
+    <tr><td>Hole at the top</td><td>Thinned too far; cap gone</td><td>Stop earlier; judge from the 5 kV image, not the target setting</td></tr>
+    <tr><td>Weak, diffuse Kikuchi bands in TKD</td><td>Thick amorphous layers</td><td>Polish at 5 and 2 kV</td></tr>
+    <tr><td>Ga in EDS, grain boundaries attacked</td><td>Gallium implantation (Al, Cu alloys)</td><td>Use a xenon or argon plasma FIB; low-kV polish</td></tr>
+  </table>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>9</span></div>
+</section>
+
+<!-- 10 · checklist -->
+<section class="page">
+  <div class="run"><span>SOP-01 TEM lamella lift-out</span><span>Checklist</span></div>
+  <h2>Checklist</h2>
+  <table class="t">
+    <tr><th></th><th>Check</th><th>Value</th><th>Initials</th></tr>
+    <tr><td class="box"></td><td>Site coated; eucentric height set at 0° and 52°</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Electron-beam Pt deposited before any ion imaging of the site</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Ion-beam Pt cap ≥ 1 µm, current density 2–6 pA/µm²</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Bulk trenches deeper than the region of interest</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Faces cleaned to ~1 µm; depth checked on the face</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>J-cut complete except the tab</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Lamella welded to the post; needle cut free</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Thinning: current stepped down; over-tilt used on both faces</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Uniform brightness at 5 kV (no wedge, no hole, not bent)</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Polished at 5 kV and 2 kV</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Final thickness estimate and total time recorded</td><td class="line"></td><td class="line"></td></tr>
+  </table>
+  <h3>Practise in FIB-view</h3>
+  <p>Lamella mode runs these steps with real patterns on the chip; the thinning and polishing steps are yours to choose. The training task <b>Lamella: thin to 100 nm</b> hides the true thickness: you judge it from the 5 kV SEM view, rate your result, and then see the truth. With your consent the session is recorded, anonymously, for research on how operators judge thickness.</p>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>10</span></div>
+</section>
+
+<!-- 11 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Try it</h2>
+  <p class="lede" style="color:#c3d3e1">The link opens FIB-view with the training task <i>Lamella: thin to 100 nm</i>.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">FIB-view · Lamella training task</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Works on a computer or a tablet.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>The exhibit</h3><p>github.com/Advanced-EM/FIB-view</p></div>
+    <div><h3>Related procedures</h3><p>SOP-02 Python scripting: automate milling and thinning, and test algorithms against the hidden truth.</p></div>
+    <div><h3>The Console</h3><p>The TEM-view Console drives FIB-view too: focus, current, stigmator, stage.</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-01 TEM lamella lift-out, version 1.0, October 2026<br>Simulation only. Nothing here controls a real instrument.<br>Follow your facility's procedures and the manufacturer's documentation.</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/FIB-view/?train=lamella-thin';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>

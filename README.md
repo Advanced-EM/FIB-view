@@ -53,7 +53,7 @@ everything the SEM exhibit does, plus a focused ion beam that images, mills, dep
   multifunction: stigmator / beam shift / tilt and stage Z / pattern size, context: voltage, pattern depth,
   deposit thickness, lamella target, slice thickness). Press `V` for the on-screen panel (Q/W focus, A/S
   magnification, Z/X current, H/L and K/J multifunction, O/P context, arrows for the stage, Tab, U to start or stop
-  patterning); pop it out to a second screen. See [`console/`](console/index.html).
+  patterning); pop it out to a second screen. The Console is the [TEM-view Console](https://advanced-em.github.io/TEM-view/console/): the same hardware drives both exhibits.
 - **Training scenarios with hidden truth and telemetry:** *SEM: focus and stigmate*, *Ion beam: focus without
   destroying it* (scored on sharpness and on the material your imaging removed), *Dual beam: find the eucentric
   height* (the stage Z reading is offset), and *Lamella: thin to 100 nm* (the true thickness is hidden). Consent
@@ -76,6 +76,10 @@ everything the SEM exhibit does, plus a focused ion beam that images, mills, dep
 - **Acquire** (`I`): numbered acquisitions in a gallery, each downloadable as PNG or NumPy `.npz` with metadata
   (calibrations, beams, pattern depth maps, lamella truth). **Export** and **save/load sessions** (including the
   milled patterns). **Headless:** `node tools/headless.mjs --mode mill --spec chip --ion Xe --mill rcs:16x8x6`.
+- **Guides** ([`docs/guides/`](docs/guides/index.html), linked from the exhibit's header): printable SOPs with figures
+  computed by the exhibit. *SOP-01 TEM lamella lift-out* (cap, trenches, cleaning, J-cut, lift-out, thinning with
+  over-tilt, 5/2 kV polish, troubleshooting, checklist) and *SOP-02 Python scripting*. Regenerate the figures with
+  `node tools/guide-figs.mjs` and the PDFs with `node tools/guides.mjs` (both use Chrome).
 - **Narration** (speaker buttons, `N` for auto-narrate) with the browser's speech synthesis, General or Physics
   level, female or male voice. **Educational ↔ realistic** toggle. **Results panel** enlarge (`X`) or pop out.
   **Phones and tablets:** one scrolling page below 1100 px.
@@ -116,7 +120,7 @@ it to zoom. In BSE click the quadrants; in EDS click a peak; in EBSD/TKD hover t
 | `js/acquire.js`, `js/export.js`, `js/npy.js`, `js/state.js` | Acquisitions, NumPy export, session state |
 | `hf/` | Hugging Face dataset builder and session collectors (Worker, Space) |
 | `tools/fibview-mcp/`, `tools/fibview-py/`, `tools/headless.mjs`, `tools/analysis/` | MCP server, Python package, headless runner, session analysis |
-| `console/` | The Console: hardware mapping for FIB-view |
+| `docs/guides/`, `tools/guides.mjs`, `tools/guide-figs.html` | Printable SOPs (lift-out, Python scripting), their figures and the PDF printer |
 
 ## License
 

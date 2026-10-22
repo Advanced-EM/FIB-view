@@ -19,7 +19,7 @@ const CHALLENGES = ['sem-focus-stig', 'fib-focus-stig', 'eucentric'];
 const SETTINGS = {
   mode: MODES.join(', '), specimen: SPECS.join(', '), kV: 'electron beam, 0.5–30', current_pA: 'electron probe current', wd_mm: 'working distance',
   tilt_deg: 'stage tilt (52: ion beam normal to the surface)', fov_um: 'field of view', focus_um: 'electron focus', stage_z_um: 'height above/below the coincidence point',
-  ion: 'Ga, Xe, Ar, N, O', ion_kV: 'ion beam, 1–30', ion_current_pA: 'snaps to the aperture strip', ion_focus_um: 'ion focus', detector: 'ise or si (ion image)',
+  ion: 'Ga, Xe, Ar, N, O', ion_kV: 'ion beam, 1–30', ion_current_pA: 'snaps to the aperture strip', ion_focus_um: 'ion focus', stig: 'electron stigmator', ion_stig: 'ion stigmator', detector: 'ise or si (ion image)',
   realistic: 'shot noise and real detectors', beam: 'True (on) or False (blanked)', gas: 'none, XeF2, H2O (milling)',
 };
 
@@ -40,6 +40,8 @@ export function settingsToOps(a) {
   if (a.fov_um !== undefined) ops.push({ op: 'set', k: 'fov', v: +a.fov_um });
   if (a.focus_um !== undefined) ops.push({ op: 'set', k: 'focus', v: +a.focus_um });
   if (a.ion_focus_um !== undefined) ops.push({ op: 'set', k: 'ifocus', v: +a.ion_focus_um });
+  if (a.stig !== undefined) ops.push({ op: 'set', k: 'stig', v: +a.stig });
+  if (a.ion_stig !== undefined) ops.push({ op: 'set', k: 'istig', v: +a.ion_stig });
   if (a.detector !== undefined) ops.push({ op: 'chip', k: 'fibDet', v: a.detector });
   if (a.gas !== undefined) ops.push({ op: 'chip', k: 'gas', v: a.gas });
   if (a.realistic !== undefined) ops.push({ op: 'set', k: 'clarity', v: a.realistic ? 'real' : 'edu' });

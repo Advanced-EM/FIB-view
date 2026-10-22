@@ -16,7 +16,7 @@ package is not inside the repository.
 
 | Call | |
 | --- | --- |
-| `set(**settings)` | mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stage_z_um, ion, ion_kV, ion_current_pA, ion_focus_um, detector, gas, realistic, beam |
+| `set(**settings)` | mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stig, stage_z_um, ion, ion_kV, ion_current_pA, ion_focus_um, ion_stig, detector, gas, realistic, beam |
 | `state()` | both beams, probe sizes, stage, patterns, the sputter yield under the beam |
 | `command(text)` | the exhibit's grammar |
 | `mill(shape, w, h, depth, x, y, gas, face)` | a pattern, run to completion |

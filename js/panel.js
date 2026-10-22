@@ -240,9 +240,9 @@ export class Panel {
     const wireV = () => el.querySelectorAll('[data-vp]').forEach((b) => b.addEventListener('click', () => { el.closest('.modal').hidden = true; this.api.openVirtual(b.dataset.vp); }));
     if (!gp) {
       el.innerHTML = `<p class="eyebrow">Control panel</p><h2>Connect a <em>panel</em>, or use the keyboard</h2>${vbtns}
-        <p>Plug in a TEM-view panel or Console, or any game controller, over USB or Bluetooth, then <b>press one of its buttons</b>: browsers only reveal a controller after it has been used.</p>
+        <p>Plug in the TEM-view Console, or any game controller, over USB or Bluetooth, then <b>press one of its buttons</b>: browsers only reveal a controller after it has been used.</p>
         <p class="muted">The panel is a USB joystick (8 axes, 16 buttons). The knobs drive whichever beam the mode uses: focus, magnification, beam current (the ion column's aperture strip), the stigmator, beam shift, tilt and stage Z, and pattern size while milling.</p>
-        <p><a href="console/" target="_blank" rel="noopener">The Console</a>: the physical panel, in development.</p>`;
+        <p><a href="https://advanced-em.github.io/TEM-view/console/" target="_blank" rel="noopener">The TEM-view Console</a>: the physical panel, in development. It drives this exhibit too.</p>`;
       wireV();
       return;
     }

@@ -95,7 +95,8 @@ export class Sim {
       }
     } else {
       // height map over the beam's footprint, rows ordered by decreasing y
-      const zc = mill.surface(cx, cy, px).Z;
+      // the image centre is the coincidence point on the original surface: milling under it does not move the stage
+      const zc = sp.top(cx, cy, px);
       const vC = cy * c + (S.ez + zc) * s, vTop = vC + (n / 2) * px, vBot = vC - (n / 2) * px;
       // Z range: probe the flat footprint
       let zmin = Infinity, zmax = -Infinity;

@@ -24,8 +24,12 @@ def search(key, lo, hi, n=7):
     return best
 
 
-f, _ = search("ion_focus_um", -100, 100)
-search("ion_focus_um", f - 20, f + 20)
+# coarse focus, then the stigmator, then fine focus (astigmatism shifts the best focus)
+f, _ = search("ion_focus_um", -100, 100, n=9)
+a, _ = search("ion_stig", -60, 60, n=9)
+search("ion_stig", a - 10, a + 10)
+f, _ = search("ion_focus_um", f - 25, f + 25)
+search("ion_focus_um", f - 6, f + 6, n=5)
 print("score:", fib.score())
 print("truth:", fib.reveal())
 fib.end_challenge()

@@ -198,7 +198,7 @@ fv.show(img, "Ion-induced SE: channelling contrast in nickel")
 const HELP = `<p><b>import fibview as fv</b> · <b>fib = fv.connect()</b> gives this exhibit. The same script runs on a desktop
 (<code>pip install -e tools/fibview-py</code>), headless or driving an open exhibit: <code>fv.connect("live")</code>.</p>
 <table>
-<tr><td><code>fib.set(**settings)</code></td><td>mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, ion (Ga, Xe, Ar, N, O), ion_kV, ion_current_pA, ion_focus_um, detector, realistic, beam</td></tr>
+<tr><td><code>fib.set(**settings)</code></td><td>mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stig, ion (Ga, Xe, Ar, N, O), ion_kV, ion_current_pA, ion_focus_um, ion_stig, detector, realistic, beam</td></tr>
 <tr><td><code>fib.state()</code></td><td>current settings, electron and ion probe sizes, sputter yield of what is under the beam</td></tr>
 <tr><td><code>fib.command(text)</code></td><td>a plain-language command: "switch to xenon", "mill a cross-section"</td></tr>
 <tr><td><code>fib.mill(shape, x, y, w, h, depth, gas=None)</code></td><td>add a pattern (rect, rcs, ccs, line, circle) and run it to completion; returns depth, volume and the measured volume yield</td></tr>

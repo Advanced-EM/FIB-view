@@ -704,7 +704,7 @@ function wire() {
   { const hero = $('.hero'), fit = () => document.documentElement.style.setProperty('--heroB', `${Math.round(hero.getBoundingClientRect().bottom)}px`); new ResizeObserver(fit).observe(hero); addEventListener('resize', fit); fit(); }
   if (SUPPORT.coffee) { $('#btnCoffee').href = SUPPORT.coffee; $('#btnCoffee').hidden = false; }
   $('#btnNews').addEventListener('click', () => {
-    $('#newsBody').innerHTML = `<p>New modes, training tasks and the Console: get an email when they ship (one list for the TEM, SEM and FIB exhibits).</p>
+    $('#newsBody').innerHTML = `<p>New modes, training tasks, guides and the TEM-view Console: get an email when they ship (one list for the TEM, SEM and FIB exhibits).</p>
       ${SUPPORT.subscribe ? `<form id="newsForm" class="newsform" novalidate>
         <label>Name<input name="name" autocomplete="name" required maxlength="100"></label>
         <label>Email<input type="email" name="email" placeholder="you@example.org" autocomplete="email" required></label>
@@ -900,6 +900,7 @@ function frame(now) {
 
 build(); wire(); refresh(); explain('spec'); resize();
 requestAnimationFrame(() => { resize(); requestAnimationFrame(frame); });
-// deep links: ?mode=mill, ?train=lamella-thin, ?ion=Xe
-{ const q = new URLSearchParams(location.search); if (q.get('ion')) chip('ion', q.get('ion')); if (q.get('mode') && KEYS[q.get('mode')]) setMode(q.get('mode')); if (q.get('train') && SCENARIOS[q.get('train')]) scn.start(q.get('train')); }
+// deep links: ?mode=mill, ?train=lamella-thin, ?ion=Xe, ?script=quickstart (opens the Python IDE with that example)
+{ const q = new URLSearchParams(location.search); if (q.get('ion')) chip('ion', q.get('ion')); if (q.get('mode') && KEYS[q.get('mode')]) setMode(q.get('mode')); if (q.get('train') && SCENARIOS[q.get('train')]) scn.start(q.get('train'));
+  const sc = q.get('script'); if (sc && /^[a-z_]+$/.test(sc)) { ide.toggle(true); ide.loadExample(`${sc}.py`); } }
 window.__fib = { S, sim, scene, scn, voice, agent, hwPanel, vPanel, draw: () => R2.draw(sim, S, mainCv, secCv, hoverIdx), runOp };

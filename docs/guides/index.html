@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guides · Sculpting with Ions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #05070b; --ink: #e6eef5; --muted: #93a6b8; --accent: #ffb347; --line: #1f2a37; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.55 'IBM Plex Sans', system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+  h1 { font: 400 44px/1.05 'Instrument Serif', Georgia, serif; margin: 0 0 8px; }
+  h1 em { color: var(--accent); }
+  p { color: var(--muted); }
+  a { color: var(--accent); }
+  .g { display: grid; grid-template-columns: 120px 1fr; gap: 18px; padding: 18px 0; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .g img { width: 120px; aspect-ratio: 0.77; object-fit: cover; background: #000; }
+  .g b { display: block; font-weight: 600; color: var(--ink); }
+  .g span { color: var(--muted); font-size: 14px; }
+  .g:hover b { color: var(--accent); }
+  .h { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="../../">← FIB-view</a></p>
+  <h1>Procedures and <em>guides</em></h1>
+  <p>Printable procedures with figures computed by FIB-view. Free to use for training; follow your facility's procedures and the manufacturer's documentation.</p>
+  <a class="g" href="pdf/sop-01-lift-out.pdf"><img src="fig/lo_face_100.jpg" alt="" style="object-position:20% 50%"><div><b>SOP-01 · TEM lamella lift-out</b><span>Eucentric height, electron- and ion-beam Pt cap, bulk trenches, cleaning cross-sections, J-cut, lift-out, thinning with over-tilt, 5 and 2 kV polishing, troubleshooting and a checklist. With gallium or plasma ions. 11 pages, PDF.</span></div></a>
+  <a class="g" href="pdf/sop-02-python-scripting.pdf"><img src="fig/py_quick_ion.jpg" alt=""><div><b>SOP-02 · Python scripting</b><span>The exhibit's Python IDE, the fibview package (headless or live), the calls, milling and deposition from Python, testing automation with challenges, batch data and regression tests. 8 pages, PDF.</span></div></a>
+  <p class="h">HTML versions: <a href="sop-01-lift-out.html">SOP-01</a> · <a href="sop-02-python-scripting.html">SOP-02</a>. For the microscope's alignment and AI agents, see the <a href="https://advanced-em.github.io/TEM-view/docs/guides/">TEM-view guides</a>.</p>
+</main>
+</body>
+</html>

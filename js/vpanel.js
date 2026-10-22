@@ -9,8 +9,8 @@ export const KEYS = {
   o: ['context', -1], p: ['context', 1], h: ['mfX', -1], l: ['mfX', 1], j: ['mfY', 1], k: ['mfY', -1],
 };
 const BTN_KEYS = { Tab: 'mfSelect', f: 'focusFine', b: 'wobbler', g: 'optFocus', ',': 'modePrev', '.': 'modeNext', i: 'acquire', u: 'calib' };
-// the physical Console's page (absolute, so it also works from the popped-out window)
-const CONSOLE_URL = new URL('console/', location.href).href;
+// the physical Console: the TEM-view Console drives this exhibit too
+const CONSOLE_URL = 'https://advanced-em.github.io/TEM-view/console/';
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
 const KNOBS = [
@@ -68,7 +68,7 @@ export class VirtualPanel {
   build(doc, root) {
     root.innerHTML = `
       <div class="vhead"><b>Control panel</b><span>keyboard · mouse · drag or scroll a knob · knobs follow the active beam</span><span class="sp"></span>
-        <a class="vget" href="${CONSOLE_URL}" target="_blank" rel="noopener" title="The physical Console (TEM-view Console hardware, also drives FIB-view)">Get the hardware ↗</a>
+        <a class="vget" href="${CONSOLE_URL}" target="_blank" rel="noopener" title="The TEM-view Console: the physical panel, which also drives FIB-view">Get the hardware ↗</a>
         ${this.where === 'dock' ? '<button data-act="popout" title="Open in a separate window">⧉</button>' : '<button data-act="dock" title="Dock in the exhibit">▣</button>'}
         <button data-act="close" title="Close (V)">×</button></div>
       <div class="vbody">

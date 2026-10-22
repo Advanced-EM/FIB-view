@@ -77,7 +77,8 @@ class Microscope:
         return self._t.call("state")
 
     def set(self, **settings) -> list:
-        """Change settings, e.g. set(mode="mill", specimen="chip", ion="Xe", ion_current_pA=60000, tilt_deg=52).
+        """Change settings, e.g. set(mode="mill", specimen="chip", ion="Xe", ion_current_pA=60000, tilt_deg=52), or the
+        focus and stigmators: focus_um, stig, ion_focus_um, ion_stig.
         See info()["settings"] for the full list. Returns what was done."""
         return self._t.call("set", settings)
 
