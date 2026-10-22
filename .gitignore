@@ -1,0 +1,10 @@
+.DS_Store
+.claude/
+node_modules/
+__pycache__/
+*.pyc
+build/
+fibview-out/
+hf/space/data/
+hf/worker/.wrangler/
+subscribers*.csv

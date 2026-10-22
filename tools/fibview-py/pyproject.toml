@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fibview"
+version = "0.1.0"
+description = "Script the FIB-view dual-beam (FIB-SEM) simulator from Python: headless, or driving an open exhibit."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "All rights reserved; license to be decided. See LICENSE in the repository." }
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+live = ["websockets>=13"]
+plot = ["matplotlib>=3.5"]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://advanced-em.github.io/FIB-view/"
+Source = "https://github.com/Advanced-EM/FIB-view/tree/main/tools/fibview-py"
+
+[tool.setuptools]
+packages = ["fibview"]
+
+[tool.setuptools.package-data]
+fibview = ["driver.mjs"]

@@ -1,0 +1,16 @@
+FIB-view and Sculpting with Ions
+Copyright (c) 2026 the FIB-view copyright holders. All rights reserved.
+
+No license is granted at this time. The licenses for the software, the documentation, the hardware designs
+and the firmware are still being decided, and will be stated in this file when they are.
+
+Until then:
+- You may view this repository and use the public exhibit (https://advanced-em.github.io/TEM-view/), as
+  allowed by the terms of the services that host them.
+- Copying, modifying, redistributing or commercial use of the code, designs, documentation, images or videos
+  requires written permission from the copyright holders.
+
+Third-party components keep their own licenses (for example three.js, Pyodide, CodeMirror and the npm and
+Python packages listed in package.json, tools/temview-mcp/package.json and tools/temview-py/pyproject.toml).
+
+Contact: open an issue at https://github.com/Advanced-EM/TEM-view/issues
