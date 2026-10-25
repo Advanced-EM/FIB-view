@@ -21,6 +21,6 @@ export const SUPPORT = {
 export const AGENT = { urls: ['ws://127.0.0.1:8792', 'ws://127.0.0.1:8793'] };
 
 export const SHARE = {
-  url: '',
+  url: 'https://fib-view-collector.tem-view.workers.dev/submit',
   dataset: 'rmsreis/fib-view-training',
 };
