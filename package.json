@@ -1,0 +1,17 @@
+{
+  "name": "fib-view",
+  "version": "1.0.0",
+  "description": "Sculpting with Ions (FIB-view): a physics-based dual-beam FIB-SEM simulator and digital twin. The js/ modules run in browsers and in Node.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": "github:Advanced-EM/FIB-view",
+  "homepage": "https://advanced-em.github.io/FIB-view/",
+  "scripts": {
+    "test": "node tools/test.mjs",
+    "serve": "python3 -m http.server 8768",
+    "figures": "node tools/guide-figs.mjs",
+    "guides": "node tools/guides.mjs",
+    "stamp": "node tools/stamp.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

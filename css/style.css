@@ -217,7 +217,10 @@ body.stacked h3.sec.closed::after { content: '+'; }
   body.stacked #detSec, body.stacked[data-mode='oah'] #detSec, body.stacked[data-mode='ilh'] #detSec { height: 100%; flex: 1; }
   body.stacked[data-mode='oah'] .dbody, body.stacked[data-mode='ilh'] .dbody { height: 500px; }
   body.stacked .dhead #secTitle { display: inline; }
-  body.stacked.detBig .dbody { flex-direction: row; height: auto; }
+  /* enlarged on a tablet: the image on top, as large as fits, the side panel below it */
+  body.stacked.detBig .dbody { flex-direction: column; height: auto; align-items: center; }
+  body.stacked.detBig #detMain { width: min(100%, 62vh); height: auto; aspect-ratio: 1; }
+  body.stacked.detBig #detSec { width: 100%; height: 40vh; flex: none; }
 }
 @media (max-width: 640px) {
   body.stacked .hero .eyebrow { margin-bottom: 4px; font-size: 9.5px; }

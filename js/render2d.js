@@ -257,20 +257,25 @@ function drawMap(sim, S, m, s, hover) {
 
   // secondary: Kikuchi pattern + indexing
   const q = s.ctx, d = s.dpr, sz = Math.min(s.H, s.W * 0.55);
-  const a = sel < M.done ? sim.patternAt(sel) : null;
+  const a = sel < M.done ? sim.patternAt(sel, hover < 0 && M.done < N * N) : null;
   layout.pat = { sz };
   if (!a) return;
-  const Np = 144;
+  const Np = a.N ?? 144;
   const pat = a.pat;
-  let arr = pat;
-  if (!real(S)) { // background correction, as done before indexing
-    const bg = blurred(pat, Np, Np, Np / 12);
-    arr = new Float32Array(Np * Np);
-    for (let i = 0; i < arr.length; i++) arr[i] = pat[i] ? pat[i] / (bg[i] || 1) : 0;
+  // background correction (as done before indexing) and the display range, computed once per pattern
+  const dk = real(S) ? 'real' : 'edu';
+  if (!a.disp || a.disp.k !== dk) {
+    let arr = pat;
+    if (!real(S)) {
+      const bg = blurred(pat, Np, Np, Np / 12);
+      arr = new Float32Array(Np * Np);
+      for (let i = 0; i < arr.length; i++) arr[i] = pat[i] ? pat[i] / (bg[i] || 1) : 0;
+    }
+    const inside = [];
+    for (let i = 0; i < arr.length; i++) if (arr[i]) inside.push(arr[i]);
+    a.disp = { k: dk, arr, r: range(Float32Array.from(inside), 0.01, 0.995) };
   }
-  const inside = [];
-  for (let i = 0; i < arr.length; i++) if (arr[i]) inside.push(arr[i]);
-  const [lo, hi] = range(Float32Array.from(inside), 0.01, 0.995);
+  const arr = a.disp.arr, [lo, hi] = a.disp.r;
   paint(q, arr, Np, Np, [0, 0, sz, sz], { lo, hi, lut: real(S) ? LUT.gray : LUT.phosphor });
   q.strokeStyle = 'rgba(255,255,255,0.15)'; q.lineWidth = 1 * d; q.beginPath(); q.arc(sz / 2, sz / 2, sz / 2 - 1, 0, 7); q.stroke();
   const G = sim.geom(), toPx = (u, v) => [((u + 1) / 2) * sz, ((1 - v) / 2) * sz];
@@ -447,6 +452,7 @@ function drawMC(sim, S, m, s) {
   ctx.setLineDash([]);
   label(ctx, `Kanaya–Okayama range ${fmtLen(Rk / 1000)}`, 8 * dpr, oy + Rk * sc + 12 * dpr, dpr, { color: C.accent, size: 8.5 });
   label(ctx, `${mc.m.name} · ${mc.E0} keV · tilt ${S.tilt}° · ${mc.n.toLocaleString()} electrons`, 8 * dpr, 14 * dpr, dpr, { color: C.text, size: 9 });
+  if (sim.mcNote) label(ctx, sim.mcNote, 8 * dpr, 54 * dpr, dpr, { color: C.warm, size: 9 });
   label(ctx, `η (Monte Carlo) = ${mc.eta.toFixed(3)} · η (Reuter/Arnal) = ${P.eta(mc.m.Z, tb).toFixed(3)}`, 8 * dpr, 34 * dpr, dpr, { color: C.warm, size: 9 });
   // scale bar
   const target = 2 * R * 0.25, e = Math.pow(10, Math.floor(Math.log10(target))), L = [1, 2, 5].map((k) => k * e).filter((v) => v <= target).pop() || e;
@@ -770,6 +776,7 @@ function drawIonMC(sim, S, m, s) {
   ctx.setLineDash([4 * dpr, 4 * dpr]); ctx.strokeStyle = 'rgba(255,180,94,0.6)'; ctx.beginPath(); ctx.moveTo(0, oy + st.Rp * sc); ctx.lineTo(W, oy + st.Rp * sc); ctx.stroke(); ctx.setLineDash([]);
   label(ctx, `projected range Rp ${st.Rp.toFixed(1)} ± ${st.dRp.toFixed(1)} nm`, 8 * dpr, oy + st.Rp * sc + 12 * dpr, dpr, { color: C.warm, size: 8.5 });
   label(ctx, `${P.ION[S.ion].name} ${mc.E0} keV → ${mc.m.name} · incidence ${Math.round(inc / P.DEG)}° · ${mc.n} ions`, 8 * dpr, 14 * dpr, dpr, { color: C.text, size: 9 });
+  if (sim.mcNote) label(ctx, sim.mcNote, 8 * dpr, 54 * dpr, dpr, { color: C.warm, size: 9 });
   label(ctx, `sputter yield (MC) ${mc.Y.toFixed(2)} · table ${P.sputter(S.ion, mc.mKey, mc.E0, inc).Y.toFixed(2)} atoms/ion · ${mc.n ? Math.round(mc.vac / mc.n) : 0} displacements/ion`, 8 * dpr, 34 * dpr, dpr, { color: C.warm, size: 9 });
   const target = 2 * R * 0.25, e10 = Math.pow(10, Math.floor(Math.log10(target))), Lb = [1, 2, 5].map((k) => k * e10).filter((v) => v <= target).pop() || e10;
   ctx.fillStyle = '#fff'; ctx.fillRect(W - 12 * dpr - Lb * sc, H - 14 * dpr, Lb * sc, 3 * dpr);

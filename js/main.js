@@ -662,8 +662,9 @@ function loadSessionFile(text) {
   if (!o.format?.startsWith('fib-view-session') || !o.state) throw new Error('not a FIB-view session');
   const st = o.state, d = defaultState(), mode = OPS.MODES.includes(st.mode) ? st.mode : S.mode;
   if (P.SPECIMENS[st.spec]) OPS.specState(S, sim, st.spec);
-  for (const k of SESSION_KEYS) { if (!(k in st) || k === 'mode' || k === 'spec' || k === 'mis') continue; if (typeof st[k] === typeof d[k]) S[k] = st[k]; }
+  // the mode first (it moves the stage and picks currents), then the saved values on top
   S.mode = ''; OPS.modeState(S, sim, mode, '');
+  for (const k of SESSION_KEYS) { if (!(k in st) || k === 'mode' || k === 'spec' || k === 'mis') continue; if (typeof st[k] === typeof d[k]) S[k] = st[k]; }
   for (const p of o.patterns ?? []) sim.mill.add({ ...p, status: 'queued' });
   OPS.runQueue(sim);
   if (o.lamella && typeof o.lamella.step === 'number') Object.assign(sim.lam, o.lamella, { busy: null });

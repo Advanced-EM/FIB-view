@@ -55,7 +55,7 @@ export class Sim {
       ifocus: ['ion'], istig: ['ion'], icur: ['ion', 'mc'], ion: ['ion', 'mc'], ikV: ['ion', 'mc'], focus: ['img'], stig: ['img'], svView: [], svSel: [], pattern: [],
     };
     for (const k of only[key] ?? ['img', 'ion', 'map', 'eds', 'mc']) this.stale[k] = 1;
-    if (key === 'spec' || key === 'all') { this.stale.sv = 1; this.views.clear(); }
+    if (key === 'spec' || key === 'all') { this.stale.sv = 1; this.views.clear(); this._prevViews?.clear(); }
     this.version++;
   }
   // sample → microscope rotation (stage tilted about x toward the ion column and the EBSD camera)
@@ -148,9 +148,15 @@ export class Sim {
         const nn = P.norm([-hx, -hy, 1]); nxA[k] = nn[0]; nyA[k] = nn[1]; nzA[k] = nn[2];
       }
     }
-    // what each ray hits: a point just inside the surface along the ray
+    // what each ray hits: a point just inside the surface along the ray. Pixels whose hit point has not moved since
+    // the last view of this field (milling changes only the patterned area) keep their material lookup.
     const eps = Math.max(1e-4, px * 0.3);
+    const baseKey = key.slice(0, key.lastIndexOf('|')), prev = this._prevViews?.get(baseKey);
     for (let k = 0; k < N; k++) {
+      if (prev && prev.Zh[k] === Zh[k] && prev.Yh[k] === Yh[k]) {
+        M[k] = prev.M[k]; ori[k] = prev.ori[k]; gb[k] = prev.gb[k]; dep[k] = prev.dep[k]; Wv[k] = prev.Wv[k];
+        continue;
+      }
       const x = Xh[k], y = Yh[k] + eps * s, Z = Zh[k] - eps * c;
       const f = FL ? FL.f[k] : mill.patterns.length ? mill.fields(x, y) : null;
       const top = FL ? FL.top[k] : sp.top(x, y, px);
@@ -160,6 +166,9 @@ export class Sim {
       Wv[k] = Zh[k] * c - Yh[k] * s; // height along the beam (toward the source)
     }
     const out = { n, px, theta, Zh, Wv, Xh, Yh, M, ori, gb, nx: nxA, ny: nyA, nz: nzA, dep, key };
+    this._prevViews ??= new Map();
+    if (this._prevViews.size > 6) this._prevViews.delete(this._prevViews.keys().next().value);
+    this._prevViews.set(baseKey, out);
     if (this.views.size > 4) this.views.delete(this.views.keys().next().value);
     this.views.set(key, out);
     return out;
@@ -338,7 +347,17 @@ export class Sim {
     let res = blurred(out, n, n, Math.max(0, sP));
     const sx = (pr.alpha * Math.abs(foc + ast)) / px, sy = (pr.alpha * Math.abs(foc - ast)) / px;
     if (sx > 0.3 || sy > 0.3) res = blurred(res, n, n, Math.max(0, sx - 0.3), Math.max(0, sy - 0.3));
-    if (pr.tail) { const halo = blurred(res, n, n, Math.min(40, sP * 8 + 2)); for (let k = 0; k < n * n; k++) res[k] = res[k] * (1 - pr.tail) + halo[k] * pr.tail; }
+    if (pr.tail) {
+      // the tail is wide and weak: blur a quarter-size copy and spread it back
+      const q = 4, m = n / q, small = new Float32Array(m * m);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) small[((j / q) | 0) * m + ((i / q) | 0)] += res[j * n + i] / (q * q);
+      const hs = blurred(small, m, m, Math.min(15, (sP * 8 + 2) / q));
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        const fx = Math.min(m - 1.001, Math.max(0, (i + 0.5) / q - 0.5)), fy = Math.min(m - 1.001, Math.max(0, (j + 0.5) / q - 0.5)), a = fx | 0, b = fy | 0, u = fx - a, w = fy - b;
+        const h = (hs[b * m + a] * (1 - u) + hs[b * m + a + 1] * u) * (1 - w) + (hs[(b + 1) * m + a] * (1 - u) + hs[(b + 1) * m + a + 1] * u) * w;
+        res[j * n + i] = res[j * n + i] * (1 - pr.tail) + h * pr.tail;
+      }
+    }
     this.ionImg = { arr: res, n, px, charging, view: v, sharp: sharpness(res, n), beam: 'ion' };
     if (ION_MODES.includes(S.mode)) this.main = { arr: res, w: n, h: n };
     this.iraster = 0; this.ifirstPass = this.iframe;
@@ -508,14 +527,20 @@ export class Sim {
     }
     return true;
   }
-  patternAt(k) {
+  patternAt(k, live = false) {
     const M = this.map;
     if (!M) return null;
-    if (this._patK === k && this._patKey === this.version) return this._pat;
+    // while a map runs, the newest point's pattern is refreshed a few times a second, not every frame
+    if (live && this._pat && now() - (this._patT ?? 0) < 500) return this._pat;
+    this._patT = now();
+    // the pattern of one map point changes only with the map and the conditions, not with every new frame
+    const key = `${k}|${M.t0}|${this.S.kV}|${this.S.clarity}|${this.S.expo}|${this.S.current}|${this.S.tkdThick}|${this.S.tkdAmorph}`;
+    if (this._patKey === key) return this._pat;
     const i = k % M.N, j = (k / M.N) | 0, step = M.fov / M.N;
     const x = M.cx + (i + 0.5 - M.N / 2) * step, y = M.cy - (j + 0.5 - M.N / 2) * step;
-    const a = this.analyzePoint(x, y, 144, 9);
-    this._pat = a; this._patK = k; this._patKey = this.version;
+    const a = this.analyzePoint(x, y, live ? 96 : 144, 9);
+    a.N = live ? 96 : 144;
+    this._pat = a; this._patKey = key;
     return a;
   }
 
@@ -602,7 +627,16 @@ export class Sim {
 
   // ------------------------------------------------------------------ Monte Carlo (electrons or ions)
   startMC() {
-    const S = this.S, s = this.sampleAt(S.cx, S.cy);
+    const S = this.S;
+    let s = this.sampleAt(S.cx, S.cy);
+    this.mcNote = null;
+    // on a pore or in vacuum: simulate the nearest solid in the field instead, and say so
+    if (!P.MAT[s.mat].rho) {
+      search: for (let r = S.fov / 64; r <= S.fov / 2; r *= 1.4) for (let a = 0; a < 6.28; a += 0.5) {
+        const t = this.sampleAt(S.cx + r * Math.cos(a), S.cy + r * Math.sin(a));
+        if (P.MAT[t.mat].rho) { s = t; this.mcNote = `beam on a pore: simulating the nearest solid, ${P.MAT[t.mat].name.toLowerCase()}, ${r < 1 ? `${Math.round(r * 1000)} nm` : `${r.toFixed(1)} µm`} away`; break search; }
+      }
+    }
     const mk = P.MAT[s.mat].rho ? s.mat : null;
     this.mcMat = mk;
     this.stale.mc = 0;
@@ -722,9 +756,10 @@ export class Sim {
       }
       const changed = this.mill.version !== this._mv;
       // the ion image and the SEM view are recomputed on alternate frames, so a refresh never stalls a frame twice
-      if (this.stale.ion || (changed && t - (this._mt ?? 0) > (a ? 350 : 120))) {
+      // refreshes while milling are spaced by their own cost, so they take at most ~a quarter of the frame time
+      if (this.stale.ion || (changed && t - (this._mt ?? 0) > (a ? Math.max(350, 4 * (this._rc ?? 0)) : 120))) {
         this._mv = this.mill.version; this._mt = t;
-        this.computeIonImage(); this.stale.ion = 0;
+        this.computeIonImage(); this.stale.ion = 0; this._rc = now() - t;
         if (m !== 'fib') this._needSec = true;
         this.version++;
       } else if ((this._needSec || this.stale.img || !this.sec) && m !== 'fib') {
@@ -740,7 +775,7 @@ export class Sim {
     if (m === 'ebsd' || m === 'tkd') {
       if (this.stale.img) { this.computeImage(); this.stale.img = 0; }
       if (this.stale.map) { this.startMap(); this.version++; }
-      if (!S.paused && this.stepMap(10 * clamp(S.speed, 0.3, 2.5))) this.version++;
+      if (!S.paused && this.stepMap(6 * clamp(S.speed, 0.3, 2.5))) this.version++;
     }
     if (m === 'eds') {
       if (this.stale.eds) { this.computeEDS(); this.stale.eds = 0; this.version++; }

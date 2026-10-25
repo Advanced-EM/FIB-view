@@ -78,7 +78,7 @@ export function addPattern(S, sim, o = {}) {
 export function runQueue(sim, maxSteps = 4000) {
   sim.mill.start();
   let n = 0;
-  while (sim.mill.active && n++ < maxSteps) { const a = sim.mill.active; sim.mill.update(Math.max(0.05, a.tEst / 30)); }
+  while (sim.mill.active && n++ < maxSteps) { const a = sim.mill.active; sim.mill.update(Math.max(0.05, a.tEst / 60)); }
   sim.mill.version++; sim.invalidate('pattern');
 }
 

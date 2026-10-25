@@ -200,7 +200,8 @@ export class Mill {
     }
     // redeposition and beam-tail smoothing: material sputtered into a deep, narrow trench lands on its floor and
     // fills troughs; scaled with the aspect ratio
-    if (p.kind !== 'dep' && p.kind !== 'img') this.smooth(p, minDim);
+    // (its strength follows the fraction of the pattern milled in this step, so the result does not depend on the step size)
+    if (p.kind !== 'dep' && p.kind !== 'img') this.smooth(p, minDim, p.status === 'running' ? clamp((tLeft / p.tEst) * 40, 0, 1) : 1);
     p.t += tLeft; p.charge += InA * tLeft; this.charge += InA * tLeft;
     p.done = p.status === 'running' ? clamp(p.t / p.tEst, 0, 1) : p.done;
     // implanted ions: dose at the pattern centre (ions/nm²)
@@ -208,7 +209,7 @@ export class Mill {
     if (p.status === 'running' && p.t >= p.tEst - 1e-9) { p.status = 'done'; p.done = 1; this.start(); }
     return true;
   }
-  smooth(p, minDim) {
+  smooth(p, minDim, w = 1) {
     const g = p.g, n = g.nx, R = g.rem, out = this._sm && this._sm.length === R.length ? this._sm : (this._sm = new Float32Array(R.length));
     out.set(R);
     for (let j = 1; j < g.ny - 1; j++) for (let i = 1; i < n - 1; i++) {
@@ -216,7 +217,7 @@ export class Mill {
       if (g.w[k] < 0.05) continue;
       const avg = 0.25 * (R[k - 1] + R[k + 1] + R[k - n] + R[k + n]);
       if (avg >= R[k]) continue; // only troughs fill in
-      const a = clamp(0.06 + (0.25 * R[k]) / minDim, 0, 0.45);
+      const a = clamp(0.06 + (0.25 * R[k]) / minDim, 0, 0.45) * w;
       out[k] = R[k] + a * (avg - R[k]);
     }
     R.set(out);
