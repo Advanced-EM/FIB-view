@@ -595,7 +595,7 @@ const agent = new AgentBridge({
 
 // ------------------------------------------------------------------ training scenarios and telemetry
 const scenarioApi = {
-  S, sim, version: 'fib-view-1',
+  S, sim, version: `1.0.0+${document.querySelector('script[src*="main.js"]')?.getAttribute('src')?.split('v=')[1] ?? 'dev'}`,
   setSpec: (v) => { OPS.specState(S, sim, v); }, setMode: (m) => { if (m === S.mode) return; OPS.modeState(S, sim, m, S.mode); },
   resetMill: () => { sim.mill.reset(); sim.lam = newLamella(); },
   download: (b, n) => download(b, n),

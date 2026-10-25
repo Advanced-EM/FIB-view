@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; background: transparent; }
+  .icon { position: relative; overflow: hidden; }
+  .icon img { position: absolute; display: block; }
+  .rounded { border-radius: 18.75%; background: linear-gradient(#0c1118, #06090d); }
+  .bleed { background: linear-gradient(#0c1118, #06090d); }
+  .social { width: 1280px; height: 640px; background: radial-gradient(ellipse at 25% 50%, #0d1520, #06080b 70%); display: flex; align-items: center; gap: 60px; padding: 0 90px; box-sizing: border-box; font-family: 'IBM Plex Mono', monospace; color: #e9edf2; }
+  .social .tile { width: 300px; height: 300px; flex: none; border-radius: 56px; background: linear-gradient(#0c1118, #06090d); position: relative; box-shadow: 0 0 0 1px rgba(255,255,255,0.04); }
+  .social .tile img { width: 300px; height: 300px; }
+  .social p.e { font-size: 24px; letter-spacing: 0.06em; color: #8a94a3; margin: 0 0 18px; }
+  .social h1 { font: 400 92px/1 'Instrument Serif', Georgia, serif; margin: 0 0 22px; }
+  .social h1 em { color: #ffb347; }
+  .social p.s { font-size: 23px; line-height: 1.5; color: #c9d2dc; margin: 0 0 28px; }
+  .social p.u { font-size: 23px; color: #ffb347; margin: 0; }
+</style></head>
+<body>
+<script>
+  // ?size=N&mode=rounded|bleed|maskable  or  ?social
+  const q = new URLSearchParams(location.search);
+  if (q.has('social')) {
+    document.body.innerHTML = `<div class="social"><div class="tile"><img src="icon.svg"></div><div>
+      <p class="e">INTERACTIVE EXHIBIT · FOCUSED ION BEAM</p><h1>Sculpting <em>with Ions</em></h1>
+      <p class="s">FIB-view: a physics-based dual-beam FIB-SEM<br>in your browser, with gallium and plasma ions.</p>
+      <p class="u">advanced-em.github.io/FIB-view</p></div></div>`;
+  } else {
+    const n = +q.get('size'), mode = q.get('mode') || 'rounded', inset = mode === 'maskable' ? 0.16 : 0;
+    document.body.innerHTML = `<div class="icon ${mode === 'rounded' ? 'rounded' : 'bleed'}" style="width:${n}px;height:${n}px"><img src="icon.svg" style="left:${n * inset}px;top:${n * inset}px;width:${n * (1 - 2 * inset)}px;height:${n * (1 - 2 * inset)}px"></div>`;
+  }
+</script>
+</body></html>

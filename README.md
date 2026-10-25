@@ -1,4 +1,8 @@
+<p align="center"><img src="icons/icon-512.png" width="128" alt="FIB-view logo: an electron beam and an ion beam meeting at 52° in a milled trench"></p>
+
 # Sculpting with Ions
+
+**Live exhibit: https://advanced-em.github.io/FIB-view/**
 
 An interactive dual-beam microscope (FIB-SEM) in the browser, built as a small science-museum exhibit. It is the
 sister exhibit of [Seeing with Electrons](https://advanced-em.github.io/TEM-view/) (TEM) and Seeing Surfaces (SEM):
@@ -93,6 +97,16 @@ python3 -m http.server 8768
 ```
 
 Then open http://localhost:8768. Three.js loads from jsDelivr. Plain static files: GitHub Pages works directly.
+
+### Releasing
+
+```bash
+npm test                 # physics references, every mode × specimen, training tasks, grammar
+node tools/stamp.mjs     # cache-busting version on every module and the stylesheet in index.html
+```
+
+Regenerate the guide figures and PDFs with `node tools/guide-figs.mjs` and `node tools/guides.mjs`, and the icon
+set and social-preview banner with `node tools/icons.mjs` (all three use Chrome).
 
 ## Controls
 

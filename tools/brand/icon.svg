@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- FIB-view icon: the electron beam (blue) and the ion beam (orange) meet at 52° in a trench they have milled -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1118"/><stop offset="1" stop-color="#06090d"/></linearGradient>
+    <linearGradient id="e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd6ff" stop-opacity=".75"/><stop offset="1" stop-color="#6fd6ff" stop-opacity=".25"/></linearGradient>
+    <linearGradient id="i" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb347" stop-opacity=".85"/><stop offset="1" stop-color="#ffb347" stop-opacity=".3"/></linearGradient>
+    <radialGradient id="spot"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#fff6e6" stop-opacity=".9"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="2.2"/></filter>
+  </defs>
+  <g id="content">
+    <!-- electron column: lens pairs and the converging cone -->
+    <rect x="118" y="128" width="58" height="30" rx="5" fill="#b8723f" stroke="#e8a06a" stroke-width="2"/>
+    <rect x="128" y="190" width="52" height="28" rx="5" fill="#b8723f" stroke="#e8a06a" stroke-width="2"/>
+    <polygon points="186,92 286,92 238,318" fill="url(#e)" filter="url(#soft)"/>
+    <!-- ion column, 52° from the electrons -->
+    <polygon points="402,118 452,156 238,318" fill="url(#i)" filter="url(#soft)"/>
+    <circle cx="430" cy="134" r="9" fill="#ffd18a"/>
+    <!-- the specimen surface with the milled trench -->
+    <path d="M86 318 H214 L224 372 H300 L306 318 H426" fill="none" stroke="#cfe3f2" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M214 322 L224 372 H300 L306 322 Z" fill="#0b1016"/>
+    <!-- sputtered atoms -->
+    <g fill="#ffe6b8"><circle cx="198" cy="282" r="5"/><circle cx="176" cy="300" r="3.5"/><circle cx="214" cy="262" r="3"/><circle cx="160" cy="268" r="2.5"/></g>
+    <circle cx="238" cy="318" r="34" fill="url(#spot)"/>
+    <!-- the detector arc, as in the TEM-view icon -->
+    <path d="M172 430 Q256 462 340 430" fill="none" stroke="#6fd6ff" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

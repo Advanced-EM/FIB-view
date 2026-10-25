@@ -5,16 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sculpting with Ions</title>
 <meta name="description" content="An interactive focused-ion-beam SEM (dual beam): Ga⁺ and Xe⁺/Ar⁺/N⁺/O⁺ plasma ion beams that image, mill, deposit and prepare TEM lamellae, plus SEM imaging, EBSD/TKD, EDS and live Monte Carlo, computed in your browser.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M9 4l7 14M24 4l-8 14' stroke='%23ffb347' stroke-width='2.4'/%3E%3Cpath d='M5 22h22l-3 6H8z' fill='%236fd6ff'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#06080b">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sculpting with Ions · FIB-view">
+<meta property="og:description" content="A physics-based dual-beam FIB-SEM in your browser: gallium and plasma ion beams that image, mill, deposit and prepare TEM lamellae.">
+<meta property="og:url" content="https://advanced-em.github.io/FIB-view/">
+<meta property="og:image" content="https://advanced-em.github.io/FIB-view/icons/social-preview.png">
+<meta property="og:image:width" content="1280"><meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=202610250527">
 <script type="importmap">
-{ "imports": {
+{
+ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "./js/acquire.js": "./js/acquire.js?v=202610250527",
+  "./js/agent.js": "./js/agent.js?v=202610250527",
+  "./js/analyze.js": "./js/analyze.js?v=202610250527",
+  "./js/components.js": "./js/components.js?v=202610250527",
+  "./js/config.js": "./js/config.js?v=202610250527",
+  "./js/explain.js": "./js/explain.js?v=202610250527",
+  "./js/export.js": "./js/export.js?v=202610250527",
+  "./js/ide.js": "./js/ide.js?v=202610250527",
+  "./js/main.js": "./js/main.js?v=202610250527",
+  "./js/mill.js": "./js/mill.js?v=202610250527",
+  "./js/narration.js": "./js/narration.js?v=202610250527",
+  "./js/npy.js": "./js/npy.js?v=202610250527",
+  "./js/ops.js": "./js/ops.js?v=202610250527",
+  "./js/panel.js": "./js/panel.js?v=202610250527",
+  "./js/physics.js": "./js/physics.js?v=202610250527",
+  "./js/render2d.js": "./js/render2d.js?v=202610250527",
+  "./js/scenarios.js": "./js/scenarios.js?v=202610250527",
+  "./js/scene3d.js": "./js/scene3d.js?v=202610250527",
+  "./js/scripting.js": "./js/scripting.js?v=202610250527",
+  "./js/sim.js": "./js/sim.js?v=202610250527",
+  "./js/state.js": "./js/state.js?v=202610250527",
+  "./js/telemetry.js": "./js/telemetry.js?v=202610250527",
+  "./js/twin.js": "./js/twin.js?v=202610250527",
+  "./js/voice.js": "./js/voice.js?v=202610250527",
+  "./js/vpanel.js": "./js/vpanel.js?v=202610250527"
+ }
+}
 </script>
 </head>
 <body>
@@ -109,6 +147,7 @@
     <p class="eyebrow">What is computed, and how</p>
     <p><b>Images</b> of both beams are ray-cast through the current surface, so a tilted view sees the faces and walls of milled trenches. Electron images use the SE yield curve and secant law, SE2 from backscattered electrons, Reuter/Arnal η(Z, tilt), channelling, ETD shadowing and the probe budget. <b>Ion images</b> use kinetic ion-induced SE emission (∝ electronic stopping), secondary-ion yields enhanced by oxygen, ion channelling, positive charging of insulators, and the ion probe (source, chromatic and spherical terms, with tails).</p>
     <p><b>Milling</b> removes J·Y per step: sputter yields from measured Ga 30 kV volume yields, scaled to other ions and energies with Sigmund's theory and ZBL nuclear stopping, with Yamamura's angular dependence, channelling, gas chemistry (XeF₂, H₂O, oxygen ions on carbon), redeposition and wall taper. <b>Deposition</b> follows reaction- and precursor-limited regimes minus sputtering. The <b>ion Monte Carlo</b> is a binary-collision code (ZBL potential with a tabulated scattering integral, Lindhard–Scharff electronic stopping, full recoil cascades and surface-binding sputtering). <b>EBSD/TKD</b>, <b>EDS</b> (now with implanted Ga, Xe, Ar) and the <b>electron Monte Carlo</b> are as in the SEM exhibit.</p>
+    <p class="muted">Version 1.0.0 · <a href="https://github.com/Advanced-EM/FIB-view/releases" target="_blank" rel="noopener">release notes</a> · <a href="docs/guides/" target="_blank" rel="noopener">guides</a></p>
     <p class="muted">Simplifications: patterns run one at a time with an averaged dose; curtaining and redeposition are modelled phenomenologically; the lamella's thinning passes use a geometric model. Trends, length scales, rates and damage depths are right; absolute signals are illustrative.</p>
   </div>
 </div>
@@ -119,6 +158,6 @@
 <input id="fileReplay" type="file" accept=".json,application/json" hidden>
 <input id="fileSession" type="file" accept=".json,application/json" hidden>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=202610250527"></script>
 </body>
 </html>
