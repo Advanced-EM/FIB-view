@@ -2,22 +2,26 @@
 // patterns, run the lamella workflow. The exhibit calls these and then refreshes its controls; voice commands, the AI
 // agent, the Python package and the headless runner all go through applyOp, so they drive the same instrument.
 import * as P from './physics.js';
-import { newLamella, thinPass, LAM_STEPS } from './mill.js';
+import { newLamella, thinPass, LAM_STEPS, newCryoLamella, cryoPrep, cryoPass, CRYO_STEPS } from './mill.js';
 import { ION_MODES } from './sim.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-export const MODES = ['se', 'inlens', 'bse', 'ebsd', 'tkd', 'eds', 'fib', 'mill', 'gis', 'sv', 'lam', 'mc'];
-export const BEAM = { se: 'e', inlens: 'e', bse: 'e', ebsd: 'e', tkd: 'e', eds: 'e', fib: 'ion', mill: 'ion', gis: 'ion', sv: 'ion', lam: 'ion', mc: 'e' };
+export const MODES = ['se', 'inlens', 'bse', 'ebsd', 'tkd', 'eds', 'fib', 'mill', 'gis', 'sv', 'lam', 'cryo', 'mc'];
+export const BEAM = { se: 'e', inlens: 'e', bse: 'e', ebsd: 'e', tkd: 'e', eds: 'e', fib: 'ion', mill: 'ion', gis: 'ion', sv: 'ion', lam: 'ion', cryo: 'ion', mc: 'e' };
 export const activeBeam = (S) => (S.mode === 'mc' ? (S.mcBeam === 'ion' ? 'ion' : 'e') : BEAM[S.mode] ?? 'e');
 // where each specimen's interesting region is
-const SITE = { chip: [6, 6], ni: [0, 0], sn: [0, 0], nmc: [0, 0], xs: [6, 1.3] };
+const SITE = { chip: [6, 6], ni: [0, 0], sn: [0, 0], nmc: [0, 0], xs: [6, 1.3], cell: [0, 0], hpf: [0, 0] };
+// the specimens each cryo-capable mode can use, and the modes that need a cryo specimen
+export const CRYO_SPECS = ['cell', 'hpf'];
 
 export function specState(S, sim, v) {
   if (!P.SPECIMENS[v]) return false;
   S.spec = v;
   const sp = P.SPECIMENS[v];
   S.fov = sp.fov; [S.cx, S.cy] = v === 'chip' ? [0, 0] : [0, 0]; S.edsSel = 'all';
-  sim.mill.reset(); sim.lam = newLamella(); sim.sv = null;
+  sim.mill.reset(); sim.lam = newLamella(); sim.cryo = newCryoLamella(); sim.sv = null;
+  // frozen specimens arrive uncoated on a cold stage; the others at room temperature
+  if (sp.cryo) { S.coated = false; S.cryoT = Math.min(S.cryoT ?? -190, -175); }
   if (ION_MODES.includes(S.mode) || S.mode === 'sv') S.fov = Math.min(S.fov, v === 'ni' ? 120 : 40);
   sim.invalidate('spec');
   return true;
@@ -37,7 +41,9 @@ export function modeState(S, sim, m, prev = S.mode) {
     // the ion modes work at the coincidence point, with the ion beam normal to the surface
     S.wd = 4; if (S.tilt !== 52 && !(m === 'fib' && prev === 'fib')) S.tilt = 52;
     if (S.spec === 'xs') specState(S, sim, 'chip');
-    if (m === 'sv' && S.spec !== 'nmc') specState(S, sim, 'nmc');
+    if (m === 'sv' && !['nmc', 'chip', 'hpf'].includes(S.spec)) specState(S, sim, 'nmc');
+    if (['lam', 'gis'].includes(m) && P.SPECIMENS[S.spec].cryo) specState(S, sim, 'chip');
+    if (m === 'cryo' && S.spec !== 'cell') specState(S, sim, 'cell');
     if (m === 'mill' && S.icur < 1000) S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 9000 : 60000);
     if (m === 'fib' && S.icur > 1000) S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 25 : 100);
     if (m === 'gis') S.icur = P.nearestCurrent(S.ion, clamp(4 * S.patW * S.patH, 10, S.ion === 'Ga' ? 3000 : 15000)); // ~4 pA/µm² for Pt
@@ -46,6 +52,9 @@ export function modeState(S, sim, m, prev = S.mode) {
     // lift-out sites are coated (a few nm of carbon or Pt) so the oxide does not charge under either beam
     if (m === 'lam') S.coated = true;
     if (m === 'lam') { S.fov = 30; S.cx = SITE.chip[0]; S.cy = SITE.chip[1]; S.kV = 5; }
+    // cryo: low kV and current for the ice, the milling angle if one was set, the clump of cells centred
+    if (m === 'cryo') { S.fov = 40; S.cx = SITE.cell[0]; S.cy = SITE.cell[1]; S.kV = 2; S.current = Math.min(S.current, 50); S.icur = P.nearestCurrent(S.ion, S.ion === 'Ga' ? 10 : 30); if (sim.cryo.step >= 3) S.tilt = sim.cryo.angle + 7; }
+    if (m === 'sv' && S.spec === 'hpf') { S.svDet = 'se'; S.kV = Math.min(S.kV, 2); S.current = Math.min(S.current, 100); }
   }
   if (m === 'mc' && prev && ION_MODES.includes(prev)) S.mcBeam = 'ion';
   sim.invalidate('mode-all');
@@ -148,6 +157,40 @@ export function lamPolish(S, sim, kV) {
   return lamThin(S, sim, { I: P.nearestCurrent(S.ion, S.ion === 'Ga' ? (kV <= 2 ? 25 : 50) : 100), kV, target: Math.max(5, L.t_top - (kV <= 2 ? 6 : 12)), overtilt: S.lamOver + 3 });
 }
 
+// ---------------------------------------------------------------- cryo lamella workflow
+// steps 0–3 prepare the site (sputter, cold GIS, milling angle, relief cuts); 4–6 are milling passes the operator
+// chooses (rough, fine, polish); 7 is the final sputter coat
+const cryoOpts = (S) => ({ sputter: S.cryoSputter, gis: S.cryoGIS, angle: S.cryoAngle, relief: S.cryoRelief, T: S.cryoT, anticontam: S.anticontam });
+export function cryoStep(S, sim) {
+  const C = sim.cryo;
+  if (C.lost || C.done) return null;
+  if (C.step >= 4) return cryoMill(S, sim) == null ? null : 'mill';
+  const id = CRYO_STEPS[C.step].id;
+  if (id === 'relief' && !S.cryoRelief) { C.log.push({ step: 'relief', skipped: true }); C.step++; sim.invalidate('pattern'); return 'relief-skipped'; }
+  cryoPrep(C, id, cryoOpts(S));
+  if (id === 'sputter') S.coated = true;
+  if (id === 'angle') S.tilt = C.angle + 7;
+  C.step++;
+  sim.invalidate('all');
+  return id;
+}
+export function cryoMill(S, sim, o = {}) {
+  const C = sim.cryo;
+  if (C.step < 4 || C.lost || C.done) return null;
+  if (o.target) S.cryoTarget = o.target;
+  if (o.I) S.cryoI = P.nearestCurrent(S.ion, o.I);
+  const dt = cryoPass(C, { ion: S.ion, I: S.cryoI, kV: o.kV ?? S.ikV, target: S.cryoTarget, T: S.cryoT, anticontam: S.anticontam });
+  sim.invalidate('pattern');
+  return dt;
+}
+export function cryoCoat(S, sim) {
+  const C = sim.cryo;
+  if (C.step < 4 || C.lost || C.done) return null;
+  C.step = 7; cryoPrep(C, 'sputter', cryoOpts(S));
+  sim.invalidate('pattern');
+  return 'coat';
+}
+
 // ---------------------------------------------------------------- the shared executor
 // op → a short description of what was done (or a result for analyses); hooks supply what needs the page
 export function applyOp(S, sim, op, hooks = {}) {
@@ -161,7 +204,9 @@ export function applyOp(S, sim, op, hooks = {}) {
       else if (k === 'tilt') S.tilt = clamp(Math.round(op.v), 0, 72);
       else if (['focus', 'ifocus', 'stig', 'istig'].includes(k)) S[k] = op.v;
       else if (k === 'clarity') { if (['edu', 'real'].includes(op.v)) S.clarity = op.v; }
-      else if (['flood', 'rocking', 'showLabels', 'coated', 'realTime'].includes(k)) S[k] = !!op.v;
+      else if (['flood', 'rocking', 'showLabels', 'coated', 'realTime', 'cryoRelief', 'anticontam'].includes(k)) S[k] = !!op.v;
+      else if (k === 'cryoAngle') S.cryoAngle = clamp(+op.v, 5, 30);
+      else if (k === 'cryoT') S.cryoT = clamp(+op.v, -196, 20);
       else if (k in S && typeof S[k] === typeof op.v) S[k] = op.v;
       op.v = S[k];
       sim.invalidate(['focus', 'ifocus', 'stig', 'istig'].includes(k) ? k : k === 'tilt' ? 'tilt' : 'all');
@@ -214,12 +259,20 @@ export function applyOp(S, sim, op, hooks = {}) {
       else if (op.v === 'polish') op.done = lamPolish(S, sim, op.kV ?? 5);
       if (hooks.headless) { runQueue(sim); lamTick(sim); }
       break;
+    case 'cryo':
+      if (S.mode !== 'cryo') (hooks.setMode ?? ((m) => modeState(S, sim, m)))('cryo');
+      if (op.angle) S.cryoAngle = clamp(+op.angle, 5, 30);
+      if (op.v === 'next') op.done = cryoStep(S, sim);
+      else if (op.v === 'mill') op.done = cryoMill(S, sim, { target: op.target, I: op.I, kV: op.kV });
+      else if (op.v === 'coat') op.done = sim.cryo.step === 0 ? cryoStep(S, sim) : cryoCoat(S, sim);
+      else if (op.v === 'reset') { sim.cryo = newCryoLamella(); S.coated = false; S.tilt = 52; sim.invalidate('all'); op.done = 'reset'; }
+      break;
     case 'action':
       if (op.v === 'pause') S.paused = !S.paused;
       else if (op.v === 'millStart') sim.mill.start();
       else if (op.v === 'millStop') sim.mill.stop();
       else if (op.v === 'clearPatterns') sim.mill.clearQueued();
-      else if (op.v === 'resetMill') { sim.mill.reset(); sim.lam = newLamella(); sim.invalidate('all'); }
+      else if (op.v === 'resetMill') { sim.mill.reset(); sim.lam = newLamella(); sim.cryo = newCryoLamella(); sim.invalidate('all'); }
       else if (op.v === 'eucentric') { S.ez = 0; sim.invalidate('ez'); }
       else if (op.v === 'autofocus') (hooks.autofocus ?? (() => autofocusNow(S, sim)))();
       break;

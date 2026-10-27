@@ -125,6 +125,7 @@ export class Panel {
     if (m === 'mill') return ['Pattern depth', `${S.patDepth} µm`];
     if (m === 'gis') return ['Deposit thickness', `${S.depThick} µm`];
     if (m === 'lam') return ['Target thickness', `${S.lamTarget} nm`];
+    if (m === 'cryo') return ['Target thickness', `${Math.round(S.cryoTarget)} nm`];
     if (m === 'sv') return ['Slice thickness', `${S.svSlice} nm`];
     if (m === 'tkd') return ['Foil thickness', `${S.tkdThick} nm`];
     if (m === 'ebsd') return ['Pattern exposure', `${S.expo} ms`];
@@ -163,8 +164,10 @@ export class Panel {
     }
     if (acc.intensity) {
       if (ion) {
-        const L = P.ION[S.ion].currents, i = L.indexOf(P.nearestCurrent(S.ion, S.icur)), j = clamp(i + Math.round(acc.intensity * sens.intensity), 0, L.length - 1);
-        this.api.set('icur', L[j], 'icur'); this.say(`Ion current ${P.fmtCurrent(S.icur)}`);
+        // in the cryo lamella the current knob sets the next milling pass
+        const k = S.mode === 'cryo' && this.api.sim?.cryo?.step >= 4 ? 'cryoI' : 'icur';
+        const L = P.ION[S.ion].currents, i = L.indexOf(P.nearestCurrent(S.ion, S[k])), j = clamp(i + Math.round(acc.intensity * sens.intensity), 0, L.length - 1);
+        this.api.set(k, L[j], k === 'icur' ? 'icur' : 'pattern'); this.say(`${k === 'icur' ? 'Ion current' : 'Milling current'} ${P.fmtCurrent(S[k])}`);
       } else { this.api.set('current', +clamp(S.current * Math.pow(1.25, acc.intensity * sens.intensity), 1, 20000).toFixed(1), 'current'); this.say(`Probe current ${P.fmtCurrent(S.current)}`); }
     }
     if (acc.mfX || acc.mfY) this.multifunction((acc.mfX ?? 0) * sens.mf, (acc.mfY ?? 0) * sens.mf);
@@ -203,6 +206,7 @@ export class Panel {
     if (m === 'mill') step('patDepth', 1.1, 0.02, 200, 'Pattern depth', 'µm', 2, 'pattern');
     else if (m === 'gis') step('depThick', 1.1, 0.02, 20, 'Deposit thickness', 'µm', 2, 'pattern');
     else if (m === 'lam') step('lamTarget', 1.06, 20, 3000, 'Target thickness', 'nm', 0, 'pattern');
+    else if (m === 'cryo') step('cryoTarget', 1.06, 50, 5000, 'Target thickness', 'nm', 0, 'pattern');
     else if (m === 'sv') step('svSlice', 1.1, 5, 1000, 'Slice', 'nm', 0, 'svSlice');
     else if (m === 'tkd') lin('tkdThick', 5, 20, 400, 'Foil thickness', 'nm', 0);
     else if (m === 'ebsd') lin('expo', 1, 1, 50, 'Exposure', 'ms', 0);

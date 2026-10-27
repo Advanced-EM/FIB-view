@@ -46,15 +46,39 @@ for (const id of Object.keys(SCENARIOS)) {
   if (id === 'sem-focus-stig') { S.focus = S.mis.eFocus; S.stig = sim.astig + S.mis.eStig; }
   if (id === 'fib-focus-stig') { S.ifocus = S.mis.iFocus; S.istig = sim.iastig + S.mis.iStig; }
   if (id === 'eucentric') S.ez = 0;
+  if (id === 'cryo-lamella') { for (const [I, T] of [[1000, 2500], [300, 800], [100, 400], [30, 200]]) OPS.cryoMill(S, sim, { I, target: T }); OPS.cryoCoat(S, sim); }
   if (id === 'lamella-thin') { for (const [I, T] of [[800, 500], [300, 250], [80, 130], [50, 100]]) OPS.lamThin(S, sim, { I, target: T }); OPS.lamPolish(S, sim, 5); OPS.lamPolish(S, sim, 2); }
   const m1 = sc.metrics(api, info).score;
   ok(m0 < 50 && m1 >= 90, `${id}: hidden error scores ${m0}, ideal operator ${m1}`);
+}
+
+// cryo: ions in vitreous ice, the lamella recipe and its failure modes
+{
+  const M = await import('../js/mill.js');
+  const rIce = P.ionRange('Ga', 'Ice', 30).Rp;
+  ok(rIce > 40 && rIce < 70, `Ga 30 keV range in vitreous ice ${rIce.toFixed(1)} nm (≈50–60)`);
+  ok(P.sputter('Ga', 'Ice', 30).Yv > 3 * P.sputter('Ga', 'Si', 30).Yv && P.sputter('Ga', 'PtCryo', 30).Yv < P.sputter('Ga', 'Ice', 30).Yv / 5, 'ice mills several times faster than Si; the cold GIS layer far slower than ice');
+  const run = (o = {}) => {
+    const tw = createTwin(), { S, sim } = tw;
+    Object.assign(S, { cryoRelief: o.relief ?? true, anticontam: o.anticontam ?? true });
+    tw.run({ op: 'chip', k: 'ion', v: o.ion ?? 'Ga' }); tw.run({ op: 'mode', v: 'cryo' });
+    for (let i = 0; i < 4; i++) tw.run({ op: 'cryo', v: 'next' });
+    for (const [I, T] of o.passes ?? [[1000, 2500], [300, 800], [100, 400], [30, 200]]) tw.run({ op: 'cryo', v: 'mill', I, target: T });
+    if (o.wait) M.cryoAge(sim.cryo, o.wait, { T: S.cryoT, anticontam: S.anticontam });
+    return M.cryoQuality(sim.cryo);
+  };
+  const ga = run(), xe = run({ ion: 'Xe' });
+  ok(ga.verdict === 'Ready for cryo-ET' && xe.verdict === 'Ready for cryo-ET' && xe.damage[0] < ga.damage[0] / 1.5, `recipe → ${ga.t} nm, Ga damage ${ga.damage[0]} nm vs Xe ${xe.damage[0]} nm`);
+  ok(run({ passes: [[1000, 200]] }).devit_pct > 50, 'rushing at 1 nA to 200 nm devitrifies the ice');
+  ok(run({ relief: false }).bent, 'no relief cuts: the thin lamella bends');
+  ok(run({ anticontam: false, wait: 600 }).contam_nm > 5 * run({ wait: 600 }).contam_nm, 'without the anticontaminator, contamination grows ~10× faster');
 }
 
 // command grammar
 const cases = { 'switch to xenon': 'chip', 'mill a box 10 by 5 by 2 microns': 'pattern', 'deposit 1 micron of platinum': 'deposit', 'thin to 100 nm': 'lam', 'ion current 1 nA': 'current', 'tilt to 52': 'set', 'what is the sputter yield?': 'analyze' };
 for (const [t, op] of Object.entries(cases)) { const r = interpret(t, { beam: 'ion' }); ok(r.ops?.[0]?.op === op, `"${t}" → ${r.ops?.[0]?.op}`); }
 ok(interpret('swich to xenom', {}).options?.[0]?.text === 'switch to xenon', 'near miss is corrected and confirmed');
+for (const [t, op] of Object.entries({ 'cryo lamella': 'mode', 'mill to 800 nm at 300 pA': 'cryo', 'sputter coat': 'cryo', 'milling angle 12': 'set' })) { const r = interpret(t, { mode: 'cryo', beam: 'ion' }); ok(r.ops?.[0]?.op === op, `"${t}" (cryo) → ${r.ops?.[0]?.op}`); }
 
 console.log(fails ? `\n${fails} failed` : '\nall passed');
 process.exitCode = fails ? 1 : 0;

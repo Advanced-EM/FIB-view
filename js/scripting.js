@@ -11,7 +11,7 @@ import { parseCommand } from './voice.js';
 import { SCENARIOS } from './scenarios.js';
 import { MODES, activeBeam, addPattern, runQueue } from './ops.js';
 import { SESSION_KEYS } from './state.js';
-import { lamQuality } from './mill.js';
+import { lamQuality, cryoQuality } from './mill.js';
 
 export const SCRIPT_API = 1;
 const SPECS = P.SPEC_KEYS;
@@ -21,6 +21,7 @@ const SETTINGS = {
   tilt_deg: 'stage tilt (52: ion beam normal to the surface)', fov_um: 'field of view', focus_um: 'electron focus', stage_z_um: 'height above/below the coincidence point',
   ion: 'Ga, Xe, Ar, N, O', ion_kV: 'ion beam, 1–30', ion_current_pA: 'snaps to the aperture strip', ion_focus_um: 'ion focus', stig: 'electron stigmator', ion_stig: 'ion stigmator', detector: 'ise or si (ion image)',
   realistic: 'shot noise and real detectors', beam: 'True (on) or False (blanked)', gas: 'none, XeF2, H2O (milling)',
+  stage_temp_C: 'cryo stage, −196 to −100 (vitreous ice crystallises above −137)', anticontaminator: 'True (cold shield in) or False', milling_angle_deg: 'cryo lamella, 5–30° to the grid', relief_cuts: 'cryo lamella micro-expansion joints, True or False',
 };
 
 export function settingsToOps(a) {
@@ -46,6 +47,10 @@ export function settingsToOps(a) {
   if (a.gas !== undefined) ops.push({ op: 'chip', k: 'gas', v: a.gas });
   if (a.realistic !== undefined) ops.push({ op: 'set', k: 'clarity', v: a.realistic ? 'real' : 'edu' });
   if (a.beam !== undefined) ops.push({ op: 'set', k: 'paused', v: !a.beam });
+  if (a.stage_temp_C !== undefined) ops.push({ op: 'set', k: 'cryoT', v: +a.stage_temp_C });
+  if (a.anticontaminator !== undefined) ops.push({ op: 'set', k: 'anticontam', v: !!a.anticontaminator });
+  if (a.milling_angle_deg !== undefined) ops.push({ op: 'set', k: 'cryoAngle', v: +a.milling_angle_deg });
+  if (a.relief_cuts !== undefined) ops.push({ op: 'set', k: 'cryoRelief', v: !!a.relief_cuts });
   return ops;
 }
 
@@ -58,6 +63,7 @@ export function stateSummary(S, sim) {
     under_beam: { material: P.MAT[s.mat].name, sputter_yield_atoms_per_ion: +y.Y.toFixed(3), volume_yield_um3_per_nC: +y.Yv.toFixed(4) },
     patterns: sim.mill.patterns.filter((p) => p.kind !== 'img').map((p) => ({ id: p.id, kind: p.kind, shape: p.shape, status: p.status, done: +p.done.toFixed(3), depth_um: p.depth, est_time_s: +p.tEst.toFixed(1) })),
     lamella: S.mode === 'lam' ? { step: sim.lam.step } : undefined,
+    cryo: sim.spec.cryo ? { stage_temp_C: S.cryoT, anticontaminator: S.anticontam, lamella_step: sim.cryo.step, milling_angle_deg: sim.cryo.angle || S.cryoAngle } : undefined,
     clarity: S.clarity, beam: S.paused ? 'blanked' : 'on',
   };
 }
@@ -122,6 +128,15 @@ export class ScriptCore {
     this.settle(4);
     return { step: this.sim.lam.step, done: op?.done ?? op, quality: lamQuality(this.sim.lam) };
   }
+  // the cryo lamella: action 'next' (preparation steps), 'mill' (both boxes, to target_nm at current_pA), 'coat', 'reset'
+  cryo({ action = 'next', target_nm, current_pA, kV } = {}) {
+    this.guard();
+    if (!['next', 'mill', 'coat', 'reset'].includes(action)) throw new Error("action must be 'next', 'mill', 'coat' or 'reset'");
+    const op = this.h.run({ op: 'cryo', v: action, target: target_nm, I: current_pA, kV });
+    this.h.refresh?.();
+    const C = this.sim.cryo, hide = !!this.S.mis?.hideTruth;
+    return { step: C.step, done: op?.done ?? null, time_min: +(C.time / 60).toFixed(1), quality: hide ? 'hidden during the challenge' : cryoQuality(C) };
+  }
   acquire({ steps } = {}) {
     this.guard();
     this.settle(steps);
@@ -160,7 +175,7 @@ export class ScriptCore {
     return { ended: was, restored: true };
   }
   call(name, args = {}) {
-    if (!['info', 'state', 'set', 'command', 'mill', 'deposit', 'lamella', 'acquire', 'analyze', 'step', 'challenge', 'score', 'reveal', 'end_challenge'].includes(name)) throw new Error(`unknown call ${name}`);
+    if (!['info', 'state', 'set', 'command', 'mill', 'deposit', 'lamella', 'cryo', 'acquire', 'analyze', 'step', 'challenge', 'score', 'reveal', 'end_challenge'].includes(name)) throw new Error(`unknown call ${name}`);
     return this[name](args ?? {});
   }
 }

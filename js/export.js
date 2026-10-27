@@ -3,7 +3,7 @@
 import { npy, zip, jsonBytes } from './npy.js';
 import { SESSION_KEYS } from './state.js';
 import * as P from './physics.js';
-import { lamQuality } from './mill.js';
+import { lamQuality, cryoQuality } from './mill.js';
 
 const A = (data, shape, units) => ({ data, shape, units });
 const hist = (vals, n, max) => { const h = new Float32Array(n); for (const v of vals) h[Math.min(n - 1, Math.floor((v / max) * n))]++; return h; };
@@ -13,7 +13,7 @@ export function collectData(sim, S) {
   if (['se', 'inlens', 'bse'].includes(m) && sim.img) {
     arrays.image = A(sim.img.arr, [sim.img.n, sim.img.n], 'detector signal (a.u.)');
     Object.assign(cal, { pixel_um: sim.img.px, beam: 'electron', view_angle_deg: S.tilt, kV: S.kV, current_pA: S.current, probe_nm: sim.probe.d });
-  } else if (['fib', 'mill', 'gis', 'lam'].includes(m) && sim.ionImg) {
+  } else if (['fib', 'mill', 'gis', 'lam', 'cryo'].includes(m) && sim.ionImg) {
     arrays.ion_image = A(sim.ionImg.arr, [sim.ionImg.n, sim.ionImg.n], `${S.fibDet === 'si' ? 'secondary ions' : 'ion-induced SE'} (a.u.)`);
     Object.assign(cal, { pixel_um: sim.ionImg.px, beam: 'ion', ion: S.ion, ion_kV: S.ikV, ion_current_pA: S.icur, ion_probe_nm: sim.iprobe.d, view_angle_deg: S.tilt - P.ION_TILT });
     if (sim.sec && m !== 'fib') { arrays.sem_image = A(sim.sec.arr, [sim.sec.n, sim.sec.n], 'SE (a.u.)'); cal.sem_pixel_um = sim.sec.px; cal.sem_view_angle_deg = S.tilt; }
@@ -24,6 +24,7 @@ export function collectData(sim, S) {
       cal[`pattern_${p.id}`] = { kind: p.kind, shape: p.shape, x: p.x, y: p.y, w: p.w, h: p.h, cell_um: g.cell, origin_um: [g.x0, g.y0], ion: p.ion, kV: p.kV, current_pA: p.I, charge_nC: p.charge, gas: p.gas, status: p.status, ...sim.mill.measure(p) };
     }
     if (m === 'lam') cal.lamella_truth = lamQuality(sim.lam);
+    if (m === 'cryo') cal.cryo_lamella_truth = { ...cryoQuality(sim.cryo), step: sim.cryo.step, stage_C: S.cryoT, anticontaminator: S.anticontam, log: sim.cryo.log };
   } else if ((m === 'ebsd' || m === 'tkd') && sim.map) {
     const M = sim.map, N = M.N, ipf = new Float32Array(N * N * 3), eul = new Float32Array(N * N * 3);
     for (let k = 0; k < M.done; k++) if (M.O[k]) { const c = P.ipfColor(M.O[k]); ipf.set([c[0] / 255, c[1] / 255, c[2] / 255], k * 3); eul.set(euler(M.O[k]), k * 3); }

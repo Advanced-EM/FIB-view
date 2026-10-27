@@ -1,6 +1,6 @@
 // What each mode shows, what each control changes, and the instrument readout.
 import * as P from './physics.js';
-import { lamQuality, LAM_STEPS } from './mill.js';
+import { lamQuality, LAM_STEPS, cryoQuality, CRYO_STEPS, cryoLength, cryoDamage } from './mill.js';
 
 export const fmtLen = (um) => (um >= 1000 ? `${+(um / 1000).toFixed(2)} mm` : um >= 1 ? `${+um.toFixed(um < 10 ? 2 : 0)} µm` : `${+(um * 1000).toFixed(um < 0.01 ? 1 : 0)} nm`);
 const f1 = (v) => v.toFixed(1), f2 = (v) => v.toFixed(2);
@@ -101,6 +101,14 @@ export function modeInfo(S, sim) {
         stats: hide ? [['Step', `${Math.min(L.step + 1, 8)} / 8`, st.title], ['Time', `${f1(L.time / 60)} min`, 'instrument time'], ['Thickness', 'hidden', 'judge it from the SEM view']] : [['Thickness', `${q.t_top} nm`, `top of window · ${q.t_bottom} nm 3 µm down`], ['Damage', `${q.amorph[0]} / ${q.amorph[1]} nm`, `amorphous on each face · ${q.crystalline} nm crystal left`], ['Time', `${f1(L.time / 60)} min`, `${L.bent ? 'BENT · ' : ''}${L.hole ? 'HOLED · ' : ''}step ${Math.min(L.step + 1, 8)} / 8`]],
       };
     }
+    case 'cryo': {
+      const C = sim.cryo, q = cryoQuality(C), st = CRYO_STEPS[Math.min(C.step, 7)], hide = !!S.mis?.hideTruth;
+      return {
+        title: 'A window into a <em>frozen cell</em>',
+        body: `Cryo-electron tomography sees proteins at work inside cells, but only through ice thinner than ~300 nm. Cells are 3–10 µm thick, so the FIB mills them from both sides at a grazing angle, leaving a <b>lamella</b> ~200 nm thick in the middle. Everything stays below −137 °C, or the glassy ice crystallises. Step ${Math.min(C.step + 1, 8)} of 8: <b>${st.title}</b>. ${st.text} Each pass leaves ~${f1(cryoDamage(S.ion, S.ikV))} nm of ion damage on each face with ${P.ION[S.ion].name}; the slab must be thick enough to keep an undamaged core.`,
+        stats: hide ? [['Step', `${Math.min(C.step + 1, 8)} / 8`, st.title], ['Time', `${f1(C.time / 60)} min`, 'instrument time'], ['Thickness', 'hidden', 'judge it from the SEM view']] : [['Thickness', C.step >= 4 ? `${q.t} nm` : '—', C.step >= 4 ? `t/λ ${q.t_lambda} · ${q.intact} nm undamaged` : `${C.angle ? `milling at ${C.angle}°, ${q.length_um} µm long` : 'not milled yet'}`], ['Ice', `${q.devit_pct} % crystalline`, `${q.contam_nm} nm contamination per face · ${Math.round(S.cryoT)} °C`], ['Time', `${f1(C.time / 60)} min`, `${C.bent ? 'BENT · ' : ''}${C.lost ? 'LOST · ' : ''}${q.verdict}`]],
+      };
+    }
   }
 }
 
@@ -156,6 +164,13 @@ export function changeText(key, S, sim) {
     case 'lamI': case 'lamKV': case 'lamTarget': case 'lamOver': return ['Thinning settings', `Next pass: ${I(S.lamI)} at ${S.lamKV} kV toward <b>${S.lamTarget} nm</b>, over-tilt ±${S.lamOver}°. The over-tilt makes each face's wall steeper, cancelling the natural ~1.5° taper that leaves lamellae wedge-shaped.`];
     case 'mcBeam': return ['Monte Carlo', S.mcBeam === 'ion' ? `Ions: ${P.ION[S.ion].name} at ${S.ikV} keV into the material under the beam. Nuclear collisions and recoil cascades, sputtering and implantation.` : `Electrons at ${S.kV} keV: elastic scattering and continuous energy loss build the interaction volume.`];
     case 'mcIons': return ['Ions', `Up to <b>${S.mcIons}</b> ions with their full recoil cascades.`];
+    case 'cryoT': return ['Cryo stage', S.cryoT > -137 ? `<b>${Math.round(S.cryoT)} °C</b>: above the devitrification temperature (≈ −137 °C) vitreous ice turns into crystalline ice within minutes. Crystals push proteins aside and diffract strongly in the TEM. Cool it down!` : `<b>${Math.round(S.cryoT)} °C</b>. The stage is cooled by nitrogen gas through copper braids. Vitreous ice is stable below ≈ −137 °C; colder also slows the contamination growing on the specimen.`];
+    case 'anticontam': return ['Anticontaminator', S.anticontam ? 'A shield colder than the specimen sits just above it and traps the residual water vapour in the chamber: contamination grows only ~0.1 nm per minute.' : 'Without the cold shield, water molecules land on the coldest surface around: your lamella. Amorphous ice grows ~1 nm per minute on each face.'];
+    case 'cryoSputter': return ['Sputter coating', `${S.cryoSputter} s at the in-chamber Pt target: ~${Math.round(S.cryoSputter * 0.5)} nm. Enough to drain charge from the ice; more just thickens the lamella.`];
+    case 'cryoGIS': return ['Cold GIS', `${S.cryoGIS} s with the valve open and the beams off: ~${(S.cryoGIS * 0.045).toFixed(1)} µm of organometallic Pt condenses. Too thin and the beam tails eat the front edge (curtains); too thick and it takes longer to mill.`];
+    case 'cryoAngle': return ['Milling angle', `<b>${S.cryoAngle}°</b> between the ion beam and the grid (stage tilt ${S.cryoAngle + 7}° on a 45° pre-tilted shuttle). The lamella is the cell's thickness divided by sin(angle) long: ~${((sim.cryo.t0 / 1000) / Math.sin(Math.max(4, S.cryoAngle) * P.DEG)).toFixed(0)} µm here. In the TEM a shallow lamella is also tilted less from the beam.`];
+    case 'cryoRelief': return ['Micro-expansion joints', S.cryoRelief ? 'Two slits milled through the film beside the site let it relax, so the thin lamella does not bend.' : 'No relief cuts: the frozen film is under stress, and lamellae below ~300 nm tend to bow and break.'];
+    case 'cryoI': case 'cryoTarget': return ['Milling pass', `Next: both boxes at <b>${I(S.cryoI)}</b> toward <b>${Math.round(S.cryoTarget)} nm</b>. The slab can only take so much beam power: keep the current below about half the thickness in nm (pA), e.g. 100 pA at 400 nm, 30 pA at 200 nm.`];
     case 'mode': return null;
   }
   return null;
@@ -181,6 +196,7 @@ export function dataRows(S, sim) {
   if (!m.cond) rows.push(['Charging (E2)', P.charges(m, S.kV, S.coated) ? `yes: ${S.kV} > ${m.E2} kV` : 'no']);
   const pi = sim.iprobe, y = P.sputter(S.ion, underKey(sim), S.ikV), rg = P.ionRange(S.ion, underKey(sim), S.ikV);
   rows.push(['Ion beam', `${P.ION[S.ion].name} ${S.ikV} kV, ${I(S.icur)}`], ['Ion probe', `${f1(pi.d)} nm (α ${f2(pi.alpha * 1000)} mrad)`], ['Sputter yield', `${f2(y.Y)} atoms/ion · ${f2(y.Yv)} µm³/nC`], ['Ion range / damage', `${f1(rg.Rp)} ± ${f1(rg.dRp)} nm / ${f1(rg.damage)} nm`], ['Stage', `tilt ${S.tilt}°, Z ${S.ez >= 0 ? '+' : ''}${f1(S.ez)} µm`]);
+  if (sim.spec.cryo) { const q = cryoQuality(sim.cryo); rows.push(['Cryo stage', `${Math.round(S.cryoT)} °C · anticontaminator ${S.anticontam ? 'on' : 'off'}`], ['Ice', `${q.devit_pct} % crystalline · ${q.contam_nm} nm contamination`]); }
   if (sim.mill.patterns.length) rows.push(['Patterns', `${sim.mill.patterns.filter((p) => p.kind !== 'img').length} · ${f2(sim.mill.charge)} nC delivered`]);
   return rows;
 }

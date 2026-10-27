@@ -6,12 +6,13 @@
 //   ebsd_stats          indexing rate, misindexing and grain size from an EBSD/TKD map
 //   sv_fractions        phase volume fractions segmented from a slice & view stack vs the true fractions
 //   lamella_thickness   lamella thickness estimated from the SEM contrast vs the true thickness
+//   cryo_quality        cryo lamella thickness from the SEM contrast, and its fitness for cryo-ET vs the truth
 //   ion_range           projected range, straggle and damage depth of the ion beam in the material under it
 // None of these has an emskills registry skill yet (eds-quant and ebsd skills are related). Runs in browsers and Node.
 import * as P from './physics.js';
 import { collectData } from './export.js';
 import { blurred } from './sim.js';
-import { lamQuality, lamThickness } from './mill.js';
+import { lamQuality, lamThickness, cryoQuality } from './mill.js';
 
 const r = (v, n = 3) => (v == null || !Number.isFinite(v) ? v : +(+v).toFixed(n));
 const lastPattern = (sim) => [...sim.mill.patterns].reverse().find((p) => p.kind !== 'img' && (p.status === 'done' || p.status === 'running' || p.status === 'stopped'));
@@ -132,8 +133,22 @@ export const ANALYSES = {
       };
     },
   },
+  cryo_quality: {
+    label: 'cryo lamella', modes: ['cryo'],
+    run(sim, S) {
+      const C = sim.cryo, q = cryoQuality(C);
+      if (C.step < 4) throw new Error('the cryo lamella is not milled yet: run the preparation steps, then mill both boxes');
+      // thin ice brightens at low kV as the electrons pass through it; the estimate saturates outside the range
+      const R = P.rangeKO(P.MAT.Ice, S.kV) * 1000, tr = Math.exp(-(C.t + 2 * C.contam) / (0.5 * R));
+      const est = tr > 0.03 && tr < 0.97 ? -0.5 * R * Math.log(tr * (1 + 0.15 * (Math.random() - 0.5))) : null;
+      return {
+        summary: `${est ? `From the ${S.kV} kV SEM contrast: about ${Math.round(est)} nm.` : `At ${S.kV} kV the lamella is ${tr >= 0.97 ? 'fully transparent: lower the kV to measure it' : 'opaque: thicker than the electrons\' range; raise the kV'}.`} (True: ${q.t} nm of slab + ${q.contam_nm} nm of contamination per face, t/λ ${q.t_lambda}; ${q.damage[0]}/${q.damage[1]} nm damaged, ${q.devit_pct} % crystalline ice: ${q.verdict}.)`,
+        result: { estimated_nm: est ? Math.round(est) : null, kV: S.kV }, truth: q,
+      };
+    },
+  },
   ion_range: {
-    label: 'ion range', modes: ['fib', 'mill', 'gis', 'lam', 'mc', 'sv', 'se', 'inlens', 'bse', 'eds', 'ebsd', 'tkd'],
+    label: 'ion range', modes: ['cryo', 'fib', 'mill', 'gis', 'lam', 'mc', 'sv', 'se', 'inlens', 'bse', 'eds', 'ebsd', 'tkd'],
     run(sim, S) {
       const s = sim.sampleAt(S.cx, S.cy), mk = P.MAT[s.mat].rho ? s.mat : 'Si', g = P.ionRange(S.ion, mk, S.ikV), y = P.sputter(S.ion, mk, S.ikV);
       return {
@@ -143,10 +158,11 @@ export const ANALYSES = {
     },
   },
 };
-const DEFAULT = { se: 'measure_resolution', inlens: 'measure_resolution', bse: 'measure_resolution', fib: 'measure_resolution', mill: 'measure_mill', gis: 'measure_mill', lam: 'lamella_thickness', eds: 'fit_eds', ebsd: 'ebsd_stats', tkd: 'ebsd_stats', sv: 'sv_fractions', mc: 'ion_range' };
+const DEFAULT = { se: 'measure_resolution', inlens: 'measure_resolution', bse: 'measure_resolution', fib: 'measure_resolution', mill: 'measure_mill', gis: 'measure_mill', lam: 'lamella_thickness', cryo: 'cryo_quality', eds: 'fit_eds', ebsd: 'ebsd_stats', tkd: 'ebsd_stats', sv: 'sv_fractions', mc: 'ion_range' };
 
 export function analyze(sim, S, name) {
   name = name ?? DEFAULT[S.mode];
+  if (name === 'lamella_thickness' && S.mode === 'cryo') name = 'cryo_quality';
   const a = ANALYSES[name];
   if (!a) throw new Error(`no analysis called ${name}. Try: ${Object.keys(ANALYSES).join(', ')}`);
   if (!a.modes.includes(S.mode)) throw new Error(`${a.label} needs ${a.modes.slice(0, 4).map((m) => m.toUpperCase()).join(' or ')} mode; the instrument is in ${S.mode.toUpperCase()}`);

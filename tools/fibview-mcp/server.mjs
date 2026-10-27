@@ -20,6 +20,7 @@ import { collectData, toNpz } from '../../js/export.js';
 import { ANALYSES } from '../../js/analyze.js';
 import { MODES, runQueue, addPattern } from '../../js/ops.js';
 import { SPEC_KEYS, ION_KEYS, sputter, ionRange, MAT } from '../../js/physics.js';
+import { cryoQuality } from '../../js/mill.js';
 
 const PORT = +(process.env.FIBVIEW_PORT ?? 8792);
 const ORIGINS = (process.env.FIBVIEW_ORIGINS ?? 'https://advanced-em.github.io').split(',').map((s) => s.trim()).filter(Boolean);
@@ -61,8 +62,8 @@ const safe = (fn) => async (args) => { try { return await fn(args); } catch (e) 
 
 // ------------------------------------------------------------------ settings → operations (the same ops as voice commands)
 const settings = {
-  mode: z.enum(MODES).optional().describe('se, inlens, bse, ebsd, tkd, eds (electron beam); fib (ion image), mill, gis (deposition); sv (slice & view), lam (lamella); mc (Monte Carlo)'),
-  specimen: z.enum(SPEC_KEYS).optional().describe('chip (microchip), ni (polished nickel), sn (tin on carbon), nmc (Li-ion cathode), xs (chip lamella)'),
+  mode: z.enum(MODES).optional().describe('se, inlens, bse, ebsd, tkd, eds (electron beam); fib (ion image), mill, gis (deposition); sv (slice & view), lam (lamella), cryo (cryo lamella of frozen cells); mc (Monte Carlo)'),
+  specimen: z.enum(SPEC_KEYS).optional().describe('chip (microchip), ni (polished nickel), sn (tin on carbon), nmc (Li-ion cathode), xs (chip lamella), cell (yeast plunge-frozen on a grid, cryo), hpf (high-pressure-frozen yeast, cryo)'),
   ion: z.enum(ION_KEYS).optional().describe('Ga (liquid-metal source) or Xe, Ar, N, O (plasma source)'),
   kV: z.number().min(0.5).max(30).optional().describe('electron beam voltage'),
   current_pA: z.number().positive().max(20000).optional().describe('electron probe current'),
@@ -73,6 +74,9 @@ const settings = {
   gas: z.enum(['none', 'XeF2', 'H2O']).optional().describe('etch gas for milling'),
   mc_beam: z.enum(['e', 'ion']).optional(),
   realistic: z.boolean().optional().describe('shot noise and raw signals instead of the educational view'),
+  stage_temp_C: z.number().min(-196).max(20).optional().describe('cryo stage temperature (vitreous ice crystallises above −137 °C)'),
+  anticontaminator: z.boolean().optional().describe('cryo cold shield in (true) or out'),
+  milling_angle_deg: z.number().min(5).max(30).optional().describe('cryo lamella milling angle to the grid'),
 };
 function toOps(a) {
   const ops = [];
@@ -88,6 +92,9 @@ function toOps(a) {
   if (a.gas) ops.push({ op: 'chip', k: 'gas', v: a.gas });
   if (a.mc_beam) ops.push({ op: 'chip', k: 'mcBeam', v: a.mc_beam });
   if (a.realistic !== undefined) ops.push({ op: 'set', k: 'clarity', v: a.realistic ? 'real' : 'edu' });
+  if (a.stage_temp_C !== undefined) ops.push({ op: 'set', k: 'cryoT', v: a.stage_temp_C });
+  if (a.anticontaminator !== undefined) ops.push({ op: 'set', k: 'anticontam', v: a.anticontaminator });
+  if (a.milling_angle_deg !== undefined) ops.push({ op: 'set', k: 'cryoAngle', v: a.milling_angle_deg });
   return ops;
 }
 const pattern = {
@@ -143,6 +150,28 @@ server.registerTool('mill', {
   return text({ pattern: { id: p.id, shape: p.shape, ion: p.ion, kV: p.kV, current_pA: p.I, asked_depth_um_in_Si: p.depth }, result: { depth_um: +m.maxDepth.toFixed(3), volume_um3: +m.volume.toFixed(2), charge_nC: +m.charge.toFixed(3), volume_yield_um3_per_nC: +m.Yv.toFixed(4), time_s: +p.t.toFixed(1) }, reference: { si_yield_atoms_per_ion: +Ysi.Y.toFixed(3), si_volume_yield: +Ysi.Yv.toFixed(4) }, ...save(tw, 'mill', a) });
 }));
 
+server.registerTool('cryo_lamella', {
+  title: 'Prepare a cryo lamella (headless)',
+  description: 'Make an on-grid cryo lamella from yeast cells in vitreous ice: sputter coat, cold GIS organometallic Pt, milling angle, optional micro-expansion joints, then milling passes (each: current and target thickness) and a final sputter coat. Returns the true result after each pass and at the end: thickness (and t/λ for cryo-ET), damaged layers, devitrification (beam heating or a warm stage), ice contamination, bending, instrument time and a verdict.',
+  inputSchema: {
+    ion: z.enum(ION_KEYS).optional().describe('Ga (default), or plasma Ar / Xe'), ion_kV: z.number().min(1).max(30).optional(),
+    milling_angle_deg: z.number().min(5).max(30).optional(), relief_cuts: z.boolean().optional(), gis_s: z.number().min(0).max(120).optional(), sputter_s: z.number().min(0).max(120).optional(),
+    stage_temp_C: z.number().min(-196).max(20).optional(), anticontaminator: z.boolean().optional(),
+    passes: z.array(z.object({ current_pA: z.number().positive(), target_nm: z.number().positive() })).min(1).max(20).describe('e.g. [{current_pA: 1000, target_nm: 2500}, {current_pA: 300, target_nm: 800}, {current_pA: 100, target_nm: 400}, {current_pA: 30, target_nm: 200}]'),
+    final_coat: z.boolean().optional(),
+  },
+  annotations: { readOnlyHint: true },
+}, safe(async (a) => {
+  const tw = createTwin(), { S } = tw;
+  for (const op of toOps({ ion: a.ion, ion_kV: a.ion_kV, stage_temp_C: a.stage_temp_C, anticontaminator: a.anticontaminator, milling_angle_deg: a.milling_angle_deg })) tw.run(op);
+  tw.run({ op: 'mode', v: 'cryo' });
+  Object.assign(S, { cryoRelief: a.relief_cuts ?? true, cryoGIS: a.gis_s ?? 20, cryoSputter: a.sputter_s ?? 15 });
+  for (let i = 0; i < 4; i++) tw.run({ op: 'cryo', v: 'next' });
+  const passes = a.passes.map((p) => { tw.run({ op: 'cryo', v: 'mill', I: p.current_pA, target: p.target_nm }); const q = cryoQuality(tw.sim.cryo); return { current_pA: S.cryoI, target_nm: p.target_nm, t_nm: q.t, devit_pct: q.devit_pct, bent: q.bent, lost: q.lost }; });
+  if (a.final_coat !== false) tw.run({ op: 'cryo', v: 'coat' });
+  return text({ ion: S.ion, passes, result: cryoQuality(tw.sim.cryo) });
+}));
+
 server.registerTool('ion_physics', {
   title: 'Ion–solid numbers',
   description: 'Sputter yield (atoms/ion and µm³/nC, at an incidence angle), projected range, straggle and damage depth of an ion species and energy in a material, from the same physics the exhibit uses (Sigmund/ZBL-scaled yields, Yamamura angular dependence, binary-collision Monte Carlo ranges).',
@@ -184,6 +213,12 @@ server.registerTool('exhibit_action', {
   return text(await call('run', { ops: [op] }));
 }));
 
+server.registerTool('exhibit_cryo', {
+  title: 'Cryo lamella on the exhibit',
+  description: 'Drive the cryo lamella workflow on the live exhibit (switches to Cryo lamella mode): next (the next preparation step: sputter coat, cold GIS, milling angle, relief cuts), mill (both boxes toward target_nm at current_pA), coat (the final sputter coat) or reset.',
+  inputSchema: { action: z.enum(['next', 'mill', 'coat', 'reset']), target_nm: z.number().positive().max(6000).optional(), current_pA: z.number().positive().max(3e6).optional() },
+}, safe(async (a) => text(await call('run', { ops: [{ op: 'cryo', v: a.action, target: a.target_nm, I: a.current_pA }] }))));
+
 server.registerTool('exhibit_command', {
   title: 'Run a spoken-style command',
   description: 'Run a plain-language command with the exhibit\'s voice grammar, as if the visitor had said it: "switch to xenon", "mill a cross-section", "deposit 1 micron of platinum", "thin to 100 nm", "tilt to 52", "acquire". Returns what was done, or that it was not understood.',
@@ -210,7 +245,7 @@ server.registerTool('exhibit_acquire', {
 
 server.registerTool('exhibit_analyze', {
   title: 'Analyze what the exhibit shows',
-  description: 'Measure the live data and compare with the truth: measure_resolution, measure_mill, sputter_yield, fit_eds (incl. implanted Ga/Xe/Ar), ebsd_stats, sv_fractions, lamella_thickness, ion_range. Omit name to pick by mode.',
+  description: 'Measure the live data and compare with the truth: measure_resolution, measure_mill, sputter_yield, fit_eds (incl. implanted Ga/Xe/Ar), ebsd_stats, sv_fractions, lamella_thickness, cryo_quality, ion_range. Omit name to pick by mode.',
   inputSchema: { name: z.enum(Object.keys(ANALYSES)).optional() }, annotations: { readOnlyHint: true },
 }, safe(async ({ name }) => text(await call('analyze', { name }))));
 

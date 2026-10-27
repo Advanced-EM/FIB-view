@@ -20,37 +20,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=202610250530">
+<link rel="stylesheet" href="css/style.css?v=202610271909">
 <script type="importmap">
 {
  "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-  "./js/acquire.js": "./js/acquire.js?v=202610250530",
-  "./js/agent.js": "./js/agent.js?v=202610250530",
-  "./js/analyze.js": "./js/analyze.js?v=202610250530",
-  "./js/components.js": "./js/components.js?v=202610250530",
-  "./js/config.js": "./js/config.js?v=202610250530",
-  "./js/explain.js": "./js/explain.js?v=202610250530",
-  "./js/export.js": "./js/export.js?v=202610250530",
-  "./js/ide.js": "./js/ide.js?v=202610250530",
-  "./js/main.js": "./js/main.js?v=202610250530",
-  "./js/mill.js": "./js/mill.js?v=202610250530",
-  "./js/narration.js": "./js/narration.js?v=202610250530",
-  "./js/npy.js": "./js/npy.js?v=202610250530",
-  "./js/ops.js": "./js/ops.js?v=202610250530",
-  "./js/panel.js": "./js/panel.js?v=202610250530",
-  "./js/physics.js": "./js/physics.js?v=202610250530",
-  "./js/render2d.js": "./js/render2d.js?v=202610250530",
-  "./js/scenarios.js": "./js/scenarios.js?v=202610250530",
-  "./js/scene3d.js": "./js/scene3d.js?v=202610250530",
-  "./js/scripting.js": "./js/scripting.js?v=202610250530",
-  "./js/sim.js": "./js/sim.js?v=202610250530",
-  "./js/state.js": "./js/state.js?v=202610250530",
-  "./js/telemetry.js": "./js/telemetry.js?v=202610250530",
-  "./js/twin.js": "./js/twin.js?v=202610250530",
-  "./js/voice.js": "./js/voice.js?v=202610250530",
-  "./js/vpanel.js": "./js/vpanel.js?v=202610250530"
+  "./js/acquire.js": "./js/acquire.js?v=202610271909",
+  "./js/agent.js": "./js/agent.js?v=202610271909",
+  "./js/analyze.js": "./js/analyze.js?v=202610271909",
+  "./js/components.js": "./js/components.js?v=202610271909",
+  "./js/config.js": "./js/config.js?v=202610271909",
+  "./js/explain.js": "./js/explain.js?v=202610271909",
+  "./js/export.js": "./js/export.js?v=202610271909",
+  "./js/ide.js": "./js/ide.js?v=202610271909",
+  "./js/main.js": "./js/main.js?v=202610271909",
+  "./js/mill.js": "./js/mill.js?v=202610271909",
+  "./js/narration.js": "./js/narration.js?v=202610271909",
+  "./js/npy.js": "./js/npy.js?v=202610271909",
+  "./js/ops.js": "./js/ops.js?v=202610271909",
+  "./js/panel.js": "./js/panel.js?v=202610271909",
+  "./js/physics.js": "./js/physics.js?v=202610271909",
+  "./js/render2d.js": "./js/render2d.js?v=202610271909",
+  "./js/scenarios.js": "./js/scenarios.js?v=202610271909",
+  "./js/scene3d.js": "./js/scene3d.js?v=202610271909",
+  "./js/scripting.js": "./js/scripting.js?v=202610271909",
+  "./js/sim.js": "./js/sim.js?v=202610271909",
+  "./js/state.js": "./js/state.js?v=202610271909",
+  "./js/telemetry.js": "./js/telemetry.js?v=202610271909",
+  "./js/twin.js": "./js/twin.js?v=202610271909",
+  "./js/voice.js": "./js/voice.js?v=202610271909",
+  "./js/vpanel.js": "./js/vpanel.js?v=202610271909"
  }
 }
 </script>
@@ -134,10 +134,11 @@
     <h2>How to <em>drive it</em></h2>
     <ul>
       <li><b>Click a label</b> on the instrument for its physics card: how it works, typical specifications, how it is calibrated, and live values. <b>Drag</b> the 3D view to orbit, scroll to zoom.</li>
-      <li><b>Modes</b> (keys <kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>): the electron beam (SE, in-lens, BSE, EBSD, TKD, EDS), the ion beam (ion image, mill, deposit), workflows (slice &amp; view, lamella) and the Monte Carlo of electrons or ions. <kbd>Space</kbd> pauses, <kbd>C</kbd> clarity, <kbd>L</kbd> labels, <kbd>R</kbd> resets the view, <kbd>N</kbd> narration.</li>
+      <li><b>Modes</b> (keys <kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, and <kbd>\</kbd> for the cryo lamella): the electron beam (SE, in-lens, BSE, EBSD, TKD, EDS), the ion beam (ion image, mill, deposit), workflows (slice &amp; view, lamella, cryo lamella) and the Monte Carlo of electrons or ions. <kbd>Space</kbd> pauses, <kbd>C</kbd> clarity, <kbd>L</kbd> labels, <kbd>R</kbd> resets the view, <kbd>N</kbd> narration.</li>
       <li><b>Ion species:</b> gallium from a liquid-metal source (the finest probe) or xenon, argon, nitrogen and oxygen from a plasma source (microamps of current, no gallium). Compare their milling rates, damage depths and chemistry.</li>
       <li><b>Mill and deposit:</b> drag on the ion image to draw a pattern (rectangle, regular or cleaning cross-section, line, circle), then press Start. The electron image beside it watches the trench grow at 52°. In Deposit mode, choose Pt, C or W and the electron or ion beam.</li>
-      <li><b>Lamella:</b> run the eight steps of a TEM lift-out, then thin the lamella yourself at decreasing currents and polish it at low kV. <b>Slice &amp; view:</b> serial-section a battery cathode and segment its phases.</li>
+      <li><b>Lamella:</b> run the eight steps of a TEM lift-out, then thin the lamella yourself at decreasing currents and polish it at low kV. <b>Slice &amp; view:</b> serial-section a battery cathode (or high-pressure-frozen yeast, on the cryo stage) and segment its phases.</li>
+      <li><b>Cryo lamella:</b> yeast cells frozen in vitreous ice on a grid, on a −190 °C stage: sputter coat, cold GIS platinum, a grazing milling angle and relief cuts, then mill both sides down to ~200 nm for cryo-electron tomography, without warming the ice (it crystallises) or letting contamination grow.</li>
       <li><b>Control panel:</b> press <kbd>V</kbd> for the on-screen console (Q/W focus, A/S magnification, Z/X beam current, H/L and K/J multifunction, O/P context, arrows for the stage, Tab for stigmator / beam shift / tilt &amp; Z / pattern size, U to start or stop patterning). The <a href="https://advanced-em.github.io/TEM-view/console/" target="_blank" rel="noopener">TEM-view Console</a> or any game controller works too; the knobs follow the active beam.</li>
       <li><b>Guides:</b> printable procedures for <a href="docs/guides/" target="_blank" rel="noopener">TEM lamella lift-out and Python scripting</a>.</li>
       <li><b>AI mode</b> (brain button or <kbd>/</kbd>): type commands like “switch to xenon”, “mill a cross-section”, “deposit 1 micron of platinum”, “thin to 100 nm”, “what is the sputter yield?”. Hold <kbd>M</kbd> to say them. Connect an AI agent (tools/fibview-mcp) to answer questions and run the instrument with you.</li>
@@ -147,7 +148,7 @@
     <p class="eyebrow">What is computed, and how</p>
     <p><b>Images</b> of both beams are ray-cast through the current surface, so a tilted view sees the faces and walls of milled trenches. Electron images use the SE yield curve and secant law, SE2 from backscattered electrons, Reuter/Arnal η(Z, tilt), channelling, ETD shadowing and the probe budget. <b>Ion images</b> use kinetic ion-induced SE emission (∝ electronic stopping), secondary-ion yields enhanced by oxygen, ion channelling, positive charging of insulators, and the ion probe (source, chromatic and spherical terms, with tails).</p>
     <p><b>Milling</b> removes J·Y per step: sputter yields from measured Ga 30 kV volume yields, scaled to other ions and energies with Sigmund's theory and ZBL nuclear stopping, with Yamamura's angular dependence, channelling, gas chemistry (XeF₂, H₂O, oxygen ions on carbon), redeposition and wall taper. <b>Deposition</b> follows reaction- and precursor-limited regimes minus sputtering. The <b>ion Monte Carlo</b> is a binary-collision code (ZBL potential with a tabulated scattering integral, Lindhard–Scharff electronic stopping, full recoil cascades and surface-binding sputtering). <b>EBSD/TKD</b>, <b>EDS</b> (now with implanted Ga, Xe, Ar) and the <b>electron Monte Carlo</b> are as in the SEM exhibit.</p>
-    <p class="muted">Version 1.0.0 · <a href="https://github.com/Advanced-EM/FIB-view/releases" target="_blank" rel="noopener">release notes</a> · <a href="docs/guides/" target="_blank" rel="noopener">guides</a></p>
+    <p class="muted">Version 1.1.0 · <a href="https://github.com/Advanced-EM/FIB-view/releases" target="_blank" rel="noopener">release notes</a> · <a href="docs/guides/" target="_blank" rel="noopener">guides</a></p>
     <p class="muted">Simplifications: patterns run one at a time with an averaged dose; curtaining and redeposition are modelled phenomenologically; the lamella's thinning passes use a geometric model. Trends, length scales, rates and damage depths are right; absolute signals are illustrative.</p>
   </div>
 </div>
@@ -158,6 +159,6 @@
 <input id="fileReplay" type="file" accept=".json,application/json" hidden>
 <input id="fileSession" type="file" accept=".json,application/json" hidden>
 
-<script type="module" src="js/main.js?v=202610250530"></script>
+<script type="module" src="js/main.js?v=202610271909"></script>
 </body>
 </html>

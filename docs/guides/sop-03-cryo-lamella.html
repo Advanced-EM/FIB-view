@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-03 Cryo lamella for cryo-ET · Sculpting with Ions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-03</span><span>Cryo focused ion beam · dual beam FIB-SEM</span></div>
+    <h1>Cryo lamella<br><em>for cryo-ET</em></h1>
+    <p class="sub" style="max-width:5.6in">Mill a window ~200 nm thin through a frozen cell on its grid, for cryo-electron tomography: cryo stage, sputter coat, cold GIS platinum, a grazing milling angle, relief cuts, milling passes and a final coat, with gallium or plasma ions.</p>
+  </div>
+  <div class="shot"><img src="fig/cr_cover.jpg" alt=""></div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-03</b>, version 1.0, October 2026<br>For trainees on a cryo dual-beam FIB-SEM, practising in FIB-view<br>Simulation only: figures and numbers are computed by FIB-view</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Scope and overview</span></div>
+  <h2>Scope and overview</h2>
+  <p class="lede">Cryo-electron tomography images proteins in their place inside cells, but only through ice thinner than ~300 nm. Cells are 3–10 µm thick, so the FIB mills a frozen cell from above and below at a grazing angle and leaves a lamella ~200 nm thick across it, still on the grid. No lift-out is needed. Everything happens below −137 °C, where water stays glassy (vitreous).</p>
+  <table class="t" style="margin-top:8pt">
+    <tr><th></th><th>Step</th><th>Setting (Ga⁺, 30 kV)</th><th>Current</th><th>Time</th></tr>
+    <tr><td class="n">1</td><td>Load the grid, cool, find the cells</td><td>stage −190 °C, anticontaminator in</td><td>imaging only</td><td>—</td></tr>
+    <tr><td class="n">2</td><td>Sputter coat</td><td>15 s Pt target, ~7.5 nm</td><td>—</td><td rowspan="4">9 min</td></tr>
+    <tr><td class="n">3</td><td>Cold GIS Pt</td><td>20 s, valve open, beams off: ~0.9 µm</td><td>—</td></tr>
+    <tr><td class="n">4</td><td>Milling angle</td><td>12° (stage tilt 19°)</td><td>—</td></tr>
+    <tr><td class="n">5</td><td>Micro-expansion joints</td><td>two slits beside the site</td><td>—</td></tr>
+    <tr><td class="n">6</td><td>Rough milling</td><td>both boxes to 2.5 µm</td><td>800 pA</td><td>9.5 min</td></tr>
+    <tr><td class="n">7</td><td>Fine milling and polishing</td><td>to 800, 400 and 200 nm</td><td>300 → 100 → 25 pA</td><td>48 min</td></tr>
+    <tr><td class="n">8</td><td>Final sputter coat, unload</td><td>15 s Pt</td><td>—</td><td>1 min</td></tr>
+  </table>
+  <p style="font-size:8.6pt;color:var(--muted)">Instrument time for one lamella through a 5.2 µm clump of yeast cells, computed by FIB-view: about 68 min with gallium, 50 min with xenon, 93 min with argon. On a real instrument add navigation, imaging and drift checks, and run several lamellae per grid.</p>
+  <div class="cols">
+    <div>
+      <h3>Terms used</h3>
+      <p><b>Vitreous ice</b>: water frozen so fast (≈10⁵ K/s) that it is a glass. Above ≈ −137 °C it <b>devitrifies</b> into crystalline ice, which pushes proteins aside and diffracts in the TEM.</p>
+      <p><b>Milling angle</b>: the angle between the ion beam and the grid. On a 45° pre-tilted shuttle it is the stage tilt − 7°.</p>
+      <p><b>t/λ</b>: thickness over the inelastic mean free path of 300 kV electrons in ice (≈350 nm). 0.4–0.7 is good for tomography.</p>
+    </div>
+    <div>
+      <h3>Rules</h3>
+      <ul class="plain">
+        <li>Keep the stage below −170 °C and the anticontaminator in, from loading to unloading.</li>
+        <li>Image ice with electrons at 2–3 kV and low current; with ions only briefly, at 10–30 pA.</li>
+        <li>Step the current down with the thickness: below about half the thickness in nm, in pA.</li>
+        <li>Polish last and fast, then coat and unload: contamination grows on the fresh faces.</li>
+      </ul>
+      <div class="note caution"><b>Caution.</b> Liquid nitrogen and cryogens burn and displace oxygen. On a real instrument, follow your facility's cryo safety rules and the manufacturer's documentation.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · step 1 -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Step 1 of 8</span></div>
+  <div class="step">Step 1</div>
+  <h2>Load, cool and find the cells</h2>
+  <div class="side">
+    <div>
+      <ol class="proc">
+        <li>Cool the stage and the anticontaminator before loading. The grid, clipped into a rigid ring, comes from the transfer station under vacuum or dry nitrogen: never through humid air.</li>
+        <li>In FIB-view open <b>Cryo lamella</b> (key <kbd>\</kbd>). The <b>Frozen cells</b> specimen loads on the cryo shuttle at <b>−190 °C</b>: yeast cells in vitreous ice on a holey carbon film on a gold grid.</li>
+        <li>Set the eucentric height (as in SOP-01, step 1).</li>
+        <li>Image with electrons at <b>2–3 kV</b>, 25 pA. Look for a clump of cells near the centre of a grid square, away from the grid bars and from cracks in the ice, with ice thin around it.</li>
+        <li>A brief ion image (Fig. 1) shows the cells as mounds. Small bright crystals on the surface are <b>frost</b> picked up during transfer: avoid sites under them.</li>
+      </ol>
+      <p class="result"><b>Result.</b> A clump of cells at eucentric height, centred in both beams.</p>
+      <div class="note"><b>Note.</b> Vitreous ice and frozen cells mill several times faster than silicon (Table 1), and charge above ~1.6 kV: keep the SEM low until the grid is coated.</div>
+      <h3>Table 1. Milling rate with Ga⁺ at 30 kV, normal incidence</h3>
+      <table class="t">
+        <tr><th>Material</th><th>µm³/nC</th><th>vs silicon</th></tr>
+        <tr><td>Vitreous ice</td><td>1.16</td><td>4.6×</td></tr>
+        <tr><td>Lipid droplets</td><td>0.95</td><td>3.8×</td></tr>
+        <tr><td>Vitrified cytoplasm</td><td>0.90</td><td>3.6×</td></tr>
+        <tr><td>Silicon (reference)</td><td>0.25</td><td>1×</td></tr>
+        <tr><td>Cold GIS Pt (organometallic)</td><td>0.11</td><td>0.44×</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/cr_site_ion.jpg" alt=""><figcaption><b>Fig. 1.</b> Ion image (Ga⁺ 30 kV, 8 pA, 52°) of a clump of yeast cells in vitreous ice. The dashed box is the lamella site. The small bright crystals are frost.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · steps 2–3 -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Steps 2 and 3 of 8</span></div>
+  <div class="step">Steps 2 and 3</div>
+  <h2>Sputter coat, then cold platinum</h2>
+  <div class="cols">
+    <div>
+      <h3>Sputter coat</h3>
+      <ol class="proc">
+        <li>Move the stage under the in-chamber Pt sputter target. Sputter for ~15 s (about 7.5 nm). In FIB-view: <b>Run next step</b>.</li>
+        <li>Check the SEM image at 3 kV: charging (Fig. 2, dark bands, drifting edges) is gone (Fig. 3).</li>
+      </ol>
+      <h3>Cold GIS platinum</h3>
+      <ol class="proc" start="3">
+        <li>Insert the GIS needle at its cryo position with <b>both beams off</b>, and open the valve for ~20 s. The precursor condenses on the cold grid as an organometallic layer (~0.9 µm), without being decomposed.</li>
+        <li>Retract the needle. Optionally sputter again to make the layer conductive.</li>
+      </ol>
+      <div class="note"><b>Why.</b> The organometallic layer mills ten times slower than ice (Table 1) and protects the front edge of the lamella from the beam's tails. Too thin a layer is used up during milling and leaves curtains down the faces. On a warm stage (above −150 °C) little of it condenses.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/cr_site_sem_uncoated.jpg" alt=""><figcaption><b>Fig. 2.</b> SEM at 3 kV, 52°, uncoated: the ice charges (dark band, left).</figcaption></figure>
+      <figure class="fig"><img src="fig/cr_site_sem_coated.jpg" alt=""><figcaption><b>Fig. 3.</b> After sputter coating: no charging.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · steps 4–5 -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Steps 4 and 5 of 8</span></div>
+  <div class="step">Steps 4 and 5</div>
+  <h2>Milling angle and relief cuts</h2>
+  <div class="side">
+    <div>
+      <ol class="proc">
+        <li>Tilt the stage so the ion beam skims the grid at the <b>milling angle</b>: 8–20°. With the 45° pre-tilted shuttle, angle = stage tilt − 7°: <b>12° at a stage tilt of 19°</b>. In FIB-view set <b>Milling angle</b>, then <b>Run next step</b>.</li>
+        <li>Re-check the eucentric height at this tilt.</li>
+        <li>Mill two narrow slits (<b>micro-expansion joints</b>) through the film a few micrometres either side of the site. In FIB-view keep <b>Micro-expansion joints</b> on and <b>Run next step</b>.</li>
+      </ol>
+      <h3>Table 2. Milling angle and lamella length (5.2 µm clump)</h3>
+      <table class="t">
+        <tr><th>Milling angle</th><th>Stage tilt</th><th>Lamella length</th></tr>
+        <tr><td>8°</td><td>15°</td><td>37 µm</td></tr>
+        <tr><td>10°</td><td>17°</td><td>30 µm</td></tr>
+        <tr><td>12°</td><td>19°</td><td>25 µm</td></tr>
+        <tr><td>15°</td><td>22°</td><td>20 µm</td></tr>
+        <tr><td>20°</td><td>27°</td><td>15 µm</td></tr>
+      </table>
+      <div class="note"><b>Trade-off.</b> A shallow angle gives a longer lamella (more cell to image) that needs less tilt compensation in the TEM, but the beam crosses more ice and grid bars may shadow it. Steep angles are quicker but short.</div>
+      <div class="note"><b>Why relief cuts.</b> The frozen film on the grid is under stress. Without the joints, lamellae below ~300 nm bow and can break (Fig. 15).</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/cr_angle_ion.jpg" alt=""><figcaption><b>Fig. 4.</b> Ion view at 12°: the clump is foreshortened into a long mound. The Pt layer lines its front edge; the two dark slits either side are the micro-expansion joints.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · step 6 -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Step 6 of 8</span></div>
+  <div class="step">Step 6</div>
+  <h2>Rough milling</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Place two rectangles, one above and one below the lamella line, 12 µm wide. Leave the lamella thickness between them.</li>
+        <li>Mill both at <b>0.5–1 nA</b> (Ga⁺; 800 pA on this aperture strip) down to <b>~2.5 µm</b>. In FIB-view: choose the current and the target, then <b>Mill both boxes</b> (or press <kbd>U</kbd>).</li>
+        <li>Check the SEM view from above (Fig. 6): two dark trenches either side of the slab.</li>
+      </ol>
+      <h3>Table 3. The recipe (Ga⁺ 30 kV) and its true result</h3>
+      <table class="t">
+        <tr><th>Current</th><th>Target</th><th>Reached</th><th>Damage per face</th><th>Time</th></tr>
+        <tr><td>800 pA</td><td>2.5 µm</td><td>2499 nm</td><td>42 nm</td><td>9.5 min</td></tr>
+        <tr><td>300 pA</td><td>800 nm</td><td>801 nm</td><td>42 nm</td><td>15.4 min</td></tr>
+        <tr><td>100 pA</td><td>400 nm</td><td>403 nm</td><td>41–43 nm</td><td>11.0 min</td></tr>
+        <tr><td>25 pA</td><td>200 nm</td><td>200 nm</td><td>42 nm</td><td>21.7 min</td></tr>
+      </table>
+      <div class="note"><b>Note.</b> The ice crystallised in none of these passes: each current stays below about half the thickness in nanometres (in pA). Rushing breaks that rule (Fig. 14).</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/cr_rough_ion.jpg" alt=""><figcaption><b>Fig. 5.</b> Ion view after rough milling: the slab (thickness drawn ×4) between the two trenches.</figcaption></figure>
+      <figure class="fig wide"><img src="fig/cr_rough_sem.jpg" alt=""><figcaption><b>Fig. 6.</b> SEM at 3 kV from above (left) and the true thickness through the lamella (right).</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>6</span></div>
+</section>
+
+<!-- 7 · step 7 -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Step 7 of 8</span></div>
+  <div class="step">Step 7</div>
+  <h2>Fine milling and polishing</h2>
+  <div class="side" style="grid-template-columns:1fr 3.3in">
+    <div>
+      <ol class="proc">
+        <li>At <b>300 pA</b> mill both boxes to <b>800 nm</b>, then at <b>100 pA</b> to <b>400 nm</b>. Keep the boxes' inner edges at the target: the beam's tails must not reach the slab.</li>
+        <li>Polish at <b>10–50 pA</b> to <b>~200 nm</b> (150–250 nm), alternating faces. Do this last, for all lamellae on the grid, just before unloading.</li>
+        <li>Judge the thickness from the SEM at 2–3 kV from above (Figs. 7–9): as the slab gets thinner than the electrons' range it brightens. In FIB-view the analysis <b>cryo_quality</b> estimates it from that contrast.</li>
+      </ol>
+      <div class="note"><b>What the damage means.</b> Each 30 kV gallium face keeps ~42 nm of damaged, Ga-implanted material. In a 200 nm lamella that leaves ~115 nm undamaged in the middle. Plasma ions leave thinner layers (Table 4).</div>
+    </div>
+    <div class="stack">
+      <figure class="fig wide"><img src="fig/cr_fine_sem.jpg" alt=""><figcaption><b>Fig. 7.</b> 800 nm: the slab is still dark at 3 kV.</figcaption></figure>
+      <figure class="fig wide"><img src="fig/cr_fine2_sem.jpg" alt=""><figcaption><b>Fig. 8.</b> 400 nm: it starts to brighten; the cells it cuts through show.</figcaption></figure>
+      <figure class="fig wide"><img src="fig/cr_polish_sem.jpg" alt=""><figcaption><b>Fig. 9.</b> 200 nm: bright and even. Red: damaged layers; blue: contamination.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>7</span></div>
+</section>
+
+<!-- 8 · step 8 + species -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Step 8 of 8</span></div>
+  <div class="step">Step 8</div>
+  <h2>Final coat, and which ions</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Sputter coat once more (~15 s): a few nm of Pt keep the lamella from charging during the tilt series in the TEM. In FIB-view: <b>Final sputter coat</b>.</li>
+        <li>Unload promptly to the transfer station and store the grid under liquid nitrogen.</li>
+      </ol>
+      <p class="result"><b>Result.</b> In this run: 200 nm thick (214 nm with coating and 2.6 nm of contamination per face), t/λ 0.61, 115 nm undamaged, 0 % crystalline ice, 68 min of instrument time: <b>ready for cryo-ET</b>.</p>
+      <h3>Table 4. The same recipe with three ion species</h3>
+      <table class="t">
+        <tr><th>Ion</th><th>Damage per face</th><th>Undamaged</th><th>Time</th></tr>
+        <tr><td>Ga⁺</td><td>42 nm</td><td>117 nm</td><td>68 min</td></tr>
+        <tr><td>Ar⁺</td><td>31 nm</td><td>139 nm</td><td>93 min</td></tr>
+        <tr><td>Xe⁺</td><td>18 nm</td><td>166 nm</td><td>50 min</td></tr>
+      </table>
+      <h3>Table 5. Damage per face (nm) vs ion voltage</h3>
+      <table class="t">
+        <tr><th>Ion</th><th>30 kV</th><th>16 kV</th><th>8 kV</th><th>5 kV</th></tr>
+        <tr><td>Ga⁺</td><td>42</td><td>27</td><td>17</td><td>13</td></tr>
+        <tr><td>Ar⁺</td><td>31</td><td>18</td><td>11</td><td>7.5</td></tr>
+        <tr><td>Xe⁺</td><td>18</td><td>13</td><td>9</td><td>7.1</td></tr>
+      </table>
+      <p style="font-size:8.4pt;color:var(--muted)">From FIB-view's collision cascades in vitreous cytoplasm (Ga⁺ 30 keV reaches ~52 nm in ice), with gallium's implantation weighted in. Published cryo-ET studies find similar ordering: plasma ions leave thinner damaged layers than gallium.</p>
+    </div>
+    <div class="stack">
+      <figure class="fig wide"><img src="fig/cr_coat_sem.jpg" alt=""><figcaption><b>Fig. 10.</b> The finished, coated lamella and its true profile.</figcaption></figure>
+      <figure class="fig"><img src="fig/cr_polish_ion.jpg" alt=""><figcaption><b>Fig. 11.</b> Ion view of the 200 nm lamella between its trenches.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>8</span></div>
+</section>
+
+<!-- 9 · troubleshooting -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Troubleshooting</span></div>
+  <h2>When it goes wrong</h2>
+  <div class="figs3">
+    <figure class="fig wide"><img src="fig/cr_devit_sem.jpg" alt=""><figcaption><b>Fig. 12.</b> 800 pA straight to 250 nm: 64 % of the ice crystallised (bright specks).</figcaption></figure>
+    <figure class="fig wide"><img src="fig/cr_bent_ion.jpg" alt=""><figcaption><b>Fig. 13.</b> No relief cuts: the 200 nm lamella bowed.</figcaption></figure>
+    <figure class="fig wide"><img src="fig/cr_contam_sem.jpg" alt=""><figcaption><b>Fig. 14.</b> No anticontaminator and 15 min of waiting: 44 nm of ice on each face.</figcaption></figure>
+  </div>
+  <table class="t" style="margin-top:12pt">
+    <tr><th>What you see</th><th>Likely cause</th><th>What to do</th></tr>
+    <tr><td>Drift, dark bands, streaks in the SEM</td><td>Uncoated ice charging</td><td>Sputter coat; image at 2–3 kV, low current</td></tr>
+    <tr><td>Bright specks; Bragg spots in the TEM</td><td>Devitrified: stage above −137 °C, or too much current for the thickness</td><td>Keep the stage below −170 °C; current ≤ ½ thickness (pA per nm)</td></tr>
+    <tr><td>Curtains; rounded front edge</td><td>GIS layer too thin or used up</td><td>Longer GIS (20–30 s) on a cold stage; fewer high-current passes</td></tr>
+    <tr><td>Lamella bows, cracks or breaks off</td><td>No relief cuts; high current when thin</td><td>Micro-expansion joints; step the current down</td></tr>
+    <tr><td>Lamella thicker in the TEM than when milled</td><td>Contamination after polishing</td><td>Anticontaminator in; polish last; coat and unload promptly</td></tr>
+    <tr><td>Thick at the back (wedge)</td><td>The beam's taper</td><td>Short final passes on each face at low current</td></tr>
+    <tr><td>Little undamaged volume</td><td>Gallium at 30 kV on a thin lamella</td><td>Stop at 200 nm, not 100; use a xenon or argon plasma FIB</td></tr>
+  </table>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>9</span></div>
+</section>
+
+<!-- 10 · beyond: cryo slice & view -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Beyond the lamella</span></div>
+  <h2>Thick samples: cryo slice &amp; view</h2>
+  <div class="side">
+    <div>
+      <p class="lede">Plunge freezing vitrifies only a few micrometres. Tissue and dense cell pastes are <b>high-pressure frozen</b> (at 2100 bar, up to ~200 µm thick) and either lifted out at cryo temperature or imaged volume by volume with cryo slice &amp; view.</p>
+      <ol class="proc">
+        <li>Load <b>HPF yeast</b> and open <b>Slice &amp; View</b> (key <kbd>0</kbd>). The stage stays at −190 °C.</li>
+        <li>Image each face with <b>SE at ~2 kV</b>, not BSE: frozen-hydrated material has almost no atomic-number contrast, but secondary electrons separate ice, cytoplasm and lipid.</li>
+        <li>Slices of 20–50 nm resolve membranes; 100 nm is enough for whole-cell morphology.</li>
+      </ol>
+      <div class="note"><b>Artefacts.</b> Curtains are strong where cells and ice mill at different rates (Fig. 15): a GIS layer and a flat, trimmed surface reduce them. In this run the segmentation found 67 % ice (true 67 %) but overcounted lipid and nuclei (7 % vs 3 %), because bright cell walls are classed with them.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/cr_sv.jpg" alt=""><figcaption><b>Fig. 15.</b> Cryo slice &amp; view of high-pressure-frozen yeast (SE, 2 kV): cell walls, nuclei and vacuoles in vitreous ice, with curtains below the cells.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>10</span></div>
+</section>
+
+<!-- 11 · checklist -->
+<section class="page">
+  <div class="run"><span>SOP-03 Cryo lamella for cryo-ET</span><span>Checklist</span></div>
+  <h2>Checklist</h2>
+  <table class="t">
+    <tr><th></th><th>Check</th><th>Value</th><th>Initials</th></tr>
+    <tr><td class="box"></td><td>Stage and anticontaminator cold before loading; grid never in humid air</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Site chosen: cells, thin ice around, away from bars and frost</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Eucentric height set</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Sputter coated; no charging at 3 kV</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Cold GIS layer deposited with the beams off</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Milling angle and stage tilt recorded; eucentric height re-checked</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Micro-expansion joints milled</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Current stepped down: ≤ ½ thickness (pA per nm) at every pass</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Polished to 150–250 nm, last, for all lamellae on the grid</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Final sputter coat; grid unloaded promptly, stored under LN₂</td><td class="line"></td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Stage temperature log: never above −170 °C</td><td class="line"></td><td class="line"></td></tr>
+  </table>
+  <h3>Practise in FIB-view</h3>
+  <p>Cryo lamella mode runs the preparation steps for you and leaves the milling passes to you. The training task <b>Cryo lamella: 200 nm for cryo-ET</b> hides the true thickness: you judge it from the SEM view from above, rate your result, and then see the truth, including the ice that crystallised and the contamination that grew. The experiment <b>Gallium vs argon in ice</b> shows the collision cascades behind Table 5. In Python, <code>fib.cryo(...)</code> runs the same workflow (example <code>cryo_lamella.py</code>).</p>
+  <div class="foot"><span>Sculpting with Ions · FIB-view</span><span>11</span></div>
+</section>
+
+<!-- 12 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Try it</h2>
+  <p class="lede" style="color:#c3d3e1">The link opens FIB-view with the training task <i>Cryo lamella: 200 nm for cryo-ET</i>.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">FIB-view · Cryo lamella training task</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Works on a computer or a tablet.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>The exhibit</h3><p>github.com/Advanced-EM/FIB-view</p></div>
+    <div><h3>Related procedures</h3><p>SOP-01 TEM lamella lift-out (materials science); SOP-02 Python scripting: automate the milling passes.</p></div>
+    <div><h3>Cryo-ET</h3><p>Seeing with Electrons (TEM-view) shows what happens to the lamella in the transmission microscope.</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-03 Cryo lamella for cryo-ET, version 1.0, October 2026<br>Simulation only. Nothing here controls a real instrument.<br>Follow your facility's procedures and the manufacturer's documentation.</div>
+    <div class="logo">Sculpting with Ions<small>FIB-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/FIB-view/?train=cryo-lamella';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>

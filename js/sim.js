@@ -2,7 +2,7 @@
 // indexing, EDS, electron and ion Monte Carlo, patterning, slice & view, and the lamella workflow.
 // DOM-free: runs in browsers and in Node.
 import * as P from './physics.js';
-import { Mill, newLamella, lamThickness } from './mill.js';
+import { Mill, newLamella, lamThickness, newCryoLamella, cryoAge } from './mill.js';
 
 const { clamp, mat3, DEG, MKEYS } = P;
 const SP = P.SPECIMENS;
@@ -28,8 +28,8 @@ export function blurred(a, w, h, sx, sy = sx) {
 }
 
 export const IMG_MODES = ['se', 'inlens', 'bse'];
-export const ION_MODES = ['fib', 'mill', 'gis', 'lam'];
-export const MODE_BEAM = { se: 'e', inlens: 'e', bse: 'e', ebsd: 'e', tkd: 'e', eds: 'e', mc: 'both', fib: 'ion', mill: 'ion', gis: 'ion', sv: 'both', lam: 'ion' };
+export const ION_MODES = ['fib', 'mill', 'gis', 'lam', 'cryo'];
+export const MODE_BEAM = { se: 'e', inlens: 'e', bse: 'e', ebsd: 'e', tkd: 'e', eds: 'e', mc: 'both', fib: 'ion', mill: 'ion', gis: 'ion', sv: 'both', lam: 'ion', cryo: 'ion' };
 
 export class Sim {
   constructor(S) {
@@ -43,6 +43,7 @@ export class Sim {
     this.clock = 0; // instrument time (s)
     this.views = new Map();
     this.lam = newLamella();
+    this.cryo = newCryoLamella();
     this.imgDose = 0; // ions/nm² delivered by imaging at the current field
     this.millAccel = 1;
   }
@@ -663,7 +664,7 @@ export class Sim {
     const S = this.S, sv = this.sv, sp = this.spec, { W, Hz, nx, nz } = sv, img = new Float32Array(nx * nz), tr = new Uint8Array(nx * nz);
     const E = S.kV, sn = Math.sin(P.ION_TILT * DEG), cs = Math.cos(P.ION_TILT * DEG);
     const level = (mk) => { const m = P.MAT[mk]; return S.svDet === 'bse' ? P.eta(m.Z) : P.delta(m, E) * 0.6 + P.eta(m.Z) * 0.6; };
-    const cls = (mk) => (mk === 'vac' ? 0 : mk === 'Binder' || mk === 'C' || mk === 'CDep' || mk === 'SiO2' ? 1 : mk === 'NMC' || mk === 'Cu' || mk === 'W' || mk === 'Ni' || mk === 'Sn' ? 2 : 3);
+    const cryo = !!sp.cryo, cls = (mk) => (cryo ? (mk === 'Ice' ? 0 : mk === 'Lipid' || mk === 'Nuc' ? 2 : 1) : mk === 'vac' ? 0 : mk === 'Binder' || mk === 'C' || mk === 'CDep' || mk === 'SiO2' ? 1 : mk === 'NMC' || mk === 'Cu' || mk === 'W' || mk === 'Ni' || mk === 'Sn' ? 2 : 3);
     for (let i = 0; i < nx; i++) {
       const x = sv.cx - W / 2 + (i + 0.5) * (W / nx);
       let streak = 0, prevY = null;
@@ -706,13 +707,17 @@ export class Sim {
     if (sv.k >= S.svN) sv.done = true;
     return true;
   }
-  dominantMat(tr) { let c = [0, 0, 0, 0]; for (let k = 0; k < tr.length; k += 13) c[tr[k]]++; return ['vac', 'Binder', 'NMC', 'Al'][c.indexOf(Math.max(...c))] === 'vac' ? 'Binder' : ['vac', 'Binder', 'NMC', 'Al'][c.indexOf(Math.max(...c))]; }
+  dominantMat(tr) {
+    const c = [0, 0, 0, 0]; for (let k = 0; k < tr.length; k += 13) c[tr[k]]++;
+    const names = this.spec.cryo ? ['Ice', 'Cyto', 'Lipid', 'Ice'] : ['vac', 'Binder', 'NMC', 'Al'], mk = names[c.indexOf(Math.max(...c))];
+    return mk === 'vac' ? 'Binder' : mk;
+  }
   // segmentation by thresholds between the phases' expected signal levels; compared with the truth
   svFractions() {
     const sv = this.sv;
     if (!sv?.k) return null;
     const S = this.S, lv = (mk) => (S.svDet === 'bse' ? P.eta(P.MAT[mk].Z) : P.delta(P.MAT[mk], S.kV) * 0.6 + P.eta(P.MAT[mk].Z) * 0.6);
-    const chip = S.spec === 'chip', lp = 0, lb = lv(chip ? 'SiO2' : 'Binder'), ln = lv(chip ? 'Cu' : 'NMC'), t1 = (lp + lb) / 2, t2 = (lb + ln) / 2;
+    const chip = S.spec === 'chip', cryo = !!this.spec.cryo, lp = cryo ? lv('Ice') : 0, lb = lv(chip ? 'SiO2' : cryo ? 'Cyto' : 'Binder'), ln = lv(chip ? 'Cu' : cryo ? 'Lipid' : 'NMC'), t1 = (lp + lb) / 2, t2 = (lb + ln) / 2;
     const meas = [0, 0, 0], tru = [0, 0, 0];
     let nm = 0, nt = 0;
     for (let s = 0; s < sv.k; s++) {
@@ -723,12 +728,14 @@ export class Sim {
         if (t[k] < 3) { tru[t[k]]++; nt++; }
       }
     }
-    return { measured: meas.map((v) => v / (nm || 1)), truth: tru.map((v) => v / (nt || 1)), names: chip ? ['voids', 'dielectric', 'metal'] : ['pores', 'binder', 'particles'] };
+    return { measured: meas.map((v) => v / (nm || 1)), truth: tru.map((v) => v / (nt || 1)), names: chip ? ['voids', 'dielectric', 'metal'] : cryo ? ['ice', 'cytoplasm', 'lipid & nuclei'] : ['pores', 'binder', 'particles'] };
   }
 
   // ------------------------------------------------------------------ main update
   update(dt) {
     const S = this.S, m = S.mode, t = now();
+    // a frozen specimen keeps ageing in real time: ice contamination grows, a warm stage devitrifies it
+    if (this.spec.cryo && !S.paused) cryoAge(this.cryo, dt, { T: S.cryoT, anticontam: S.anticontam });
     if (IMG_MODES.includes(m)) {
       if (this.stale.img) { this.computeImage(); this.stale.img = 0; this.version++; }
       if (!S.paused) {

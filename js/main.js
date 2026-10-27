@@ -6,7 +6,7 @@ import { Scene3D } from './scene3d.js';
 import { modeInfo, changeText, dataRows, fmtLen } from './explain.js';
 import { renderComponent, COMPONENTS } from './components.js';
 import { defaultState, SESSION_KEYS } from './state.js';
-import { SHAPES, LAM_STEPS, newLamella, lamQuality } from './mill.js';
+import { SHAPES, LAM_STEPS, newLamella, lamQuality, CRYO_STEPS, cryoQuality, cryoLength, cryoDamage, newCryoLamella } from './mill.js';
 import * as OPS from './ops.js';
 import { Panel } from './panel.js';
 import { VirtualPanel } from './vpanel.js';
@@ -37,26 +37,30 @@ const MODES = [
   ['se', 'SE · ETD', 'secondary electrons', 'Electron beam'], ['inlens', 'In-lens', 'through-the-lens SE', 'Electron beam'], ['bse', 'BSE', 'backscattered', 'Electron beam'],
   ['ebsd', 'EBSD', 'orientation maps', 'Electron beam'], ['tkd', 'TKD', 'transmission Kikuchi', 'Electron beam'], ['eds', 'EDS', 'X-ray spectra', 'Electron beam'],
   ['fib', 'Ion image', 'ion-induced electrons and ions', 'Ion beam'], ['mill', 'Mill', 'sputtering patterns', 'Ion beam'], ['gis', 'Deposit', 'gas injection', 'Ion beam'],
-  ['sv', 'Slice & View', 'FIB-SEM tomography', 'Workflows'], ['lam', 'Lamella', 'TEM lift-out', 'Workflows'], ['mc', 'Monte Carlo', 'electrons and ions', 'Physics'],
+  ['sv', 'Slice & View', 'FIB-SEM tomography', 'Workflows'], ['lam', 'Lamella', 'TEM lift-out', 'Workflows'], ['cryo', 'Cryo lamella', 'frozen cells for cryo-ET', 'Workflows'], ['mc', 'Monte Carlo', 'electrons and ions', 'Physics'],
 ];
-const KEYS = Object.fromEntries(MODES.map(([m], i) => [m, '1234567890-='[i]]));
+// keys 1–0, -, = in order; the cryo lamella (added later) is on \
+const KEYS = Object.fromEntries(MODES.filter(([m]) => m !== 'cryo').map(([m], i) => [m, '1234567890-='[i]]).concat([['cryo', '\\']]));
 const logMap = (min, max) => ({ to: (v) => (Math.log(v / min) / Math.log(max / min)) * 1000, from: (t) => min * Math.pow(max / min, t / 1000) });
-const IMG = 'se inlens bse', EB = 'se inlens bse ebsd tkd eds', IONM = 'fib mill gis lam sv', PATM = 'mill gis';
+const IMG = 'se inlens bse', EB = 'se inlens bse ebsd tkd eds', IONM = 'fib mill gis lam cryo sv', PATM = 'mill gis';
 const beamNow = () => OPS.activeBeam(S);
-const SPEC_KEYS_ALL = ['chip', 'ni', 'sn', 'nmc', 'xs'];
-const SPEC_OK = { lam: ['chip'], sv: ['nmc', 'chip'], tkd: ['xs'], ebsd: ['chip', 'ni', 'xs'], fib: ['chip', 'ni', 'sn', 'nmc'], mill: ['chip', 'ni', 'sn', 'nmc'], gis: ['chip', 'ni', 'sn', 'nmc'] };
+const SPEC_KEYS_ALL = ['chip', 'ni', 'sn', 'nmc', 'xs', 'cell', 'hpf'];
+const SPEC_OK = { lam: ['chip'], cryo: ['cell'], sv: ['nmc', 'chip', 'hpf'], tkd: ['xs'], ebsd: ['chip', 'ni', 'xs'], fib: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], mill: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], gis: ['chip', 'ni', 'sn', 'nmc'] };
 
 const CONTROLS = [
   { sec: 'The specimen' },
   // only the specimens that make sense in each mode (a lamella is cut from the chip, TKD needs a thin foil, …)
-  { chips: 'spec', dynOpts: () => [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella']].filter(([k]) => (SPEC_OK[S.mode] ?? SPEC_KEYS_ALL).includes(k)) },
+  { chips: 'spec', dynOpts: () => [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella'], ['cell', 'Frozen cells'], ['hpf', 'HPF yeast']].filter(([k]) => (SPEC_OK[S.mode] ?? SPEC_KEYS_ALL).includes(k)) },
   { slider: 'fov', label: 'Field of view', dyn: () => ({ min: sim.spec.fovMin, max: sim.spec.fovMax }), log: true, fmt: (v) => `${fmtLen(v)}  ×${Math.round(127000 / v).toLocaleString()}`, note: 'Drag the image to move the stage (in Mill and Deposit: Alt-drag); scroll it to zoom.' },
   { slider: 'tilt', label: 'Stage tilt', min: 0, max: 72, step: 1, fmt: (v) => `${v}°`, ends: ['flat', 'FIB 52°', 'EBSD 70°'] },
   { slider: 'ez', label: 'Stage Z', min: -40, max: 40, step: 0.1, fmt: (v) => `${(v + (S.mis?.zRead ?? 0)) >= 0 ? '+' : ''}${(v + (S.mis?.zRead ?? 0)).toFixed(1)} µm`, ends: ['down', 'eucentric', 'up'] },
   { buttons: [['tilt0', '0°'], ['tilt52', '52° (FIB)'], ['eucentric', 'Go to eucentric']] },
-  { toggles: [['coated', 'Carbon coating']] },
+  { toggles: [['coated', 'Carbon coating']], show: () => !sim.spec.cryo },
+  // the cryo stage: shown whenever a frozen specimen is loaded
+  { toggles: [['coated', 'Sputter-coated (Pt)'], ['anticontam', 'Anticontaminator']], show: () => !!sim.spec.cryo },
+  { slider: 'cryoT', label: 'Cryo stage temperature', min: -196, max: -100, step: 1, fmt: (v) => `${Math.round(v)} °C${v > -137 ? ' · devitrifying!' : ''}`, ends: ['LN₂ −196', '', 'ice crystallises above −137'], show: () => !!sim.spec.cryo },
 
-  { sec: 'Electron beam', modes: `${EB} mill gis lam sv mc` },
+  { sec: 'Electron beam', modes: `${EB} mill gis lam cryo sv mc` },
   { slider: 'kV', label: 'Accelerating voltage', min: 0.5, max: 30, step: 0.5, fmt: (v) => `${v} kV` },
   { chips: 'kV', small: true, opts: [[1, '1 kV'], [2, '2 kV'], [5, '5 kV'], [15, '15 kV'], [30, '30 kV']] },
   { slider: 'current', label: 'Probe current', min: 1, max: 20000, log: true, fmt: (v) => P.fmtCurrent(v), ends: ['imaging', '', 'EDS / EBSD'], modes: EB },
@@ -115,6 +119,18 @@ const CONTROLS = [
   { buttons: [['lamThin', 'Thin both faces'], ['lamPolish5', 'Polish 5 kV'], ['lamPolish2', 'Polish 2 kV']] },
   { buttons: [['lamTKD', 'Send to TKD']] },
 
+  { sec: 'Cryo lamella', modes: 'cryo' },
+  { custom: 'cryosteps' },
+  { buttons: [['cryoNext', 'Run next step'], ['cryoReset', 'Start over']], show: () => sim.cryo.step < 4 },
+  { buttons: [['cryoReset', 'Start over']], show: () => sim.cryo.step >= 4 },
+  { slider: 'cryoSputter', label: 'Sputter coating time', min: 5, max: 60, step: 1, fmt: (v) => `${v} s · ~${Math.round(v * 0.5)} nm Pt`, show: () => sim.cryo.step === 0 },
+  { slider: 'cryoGIS', label: 'Cold GIS time', min: 5, max: 60, step: 1, fmt: (v) => `${v} s · ~${(v * 0.045 * (S.cryoT > -150 ? 0.4 : 1)).toFixed(1)} µm`, show: () => sim.cryo.step === 1 },
+  { slider: 'cryoAngle', label: 'Milling angle', min: 5, max: 30, step: 1, fmt: (v) => `${v}° (stage tilt ${v + 7}°)`, ends: ['long lamella', '', 'short'], show: () => sim.cryo.step <= 2 },
+  { toggles: [['cryoRelief', 'Micro-expansion joints']], show: () => sim.cryo.step <= 3 },
+  { chips: 'cryoI', label: 'Milling current', dynOpts: () => P.ION[S.ion].currents.filter((c) => c <= (S.ion === 'Ga' ? 3000 : 15000) && c >= 5).map((c) => [c, P.fmtCurrent(c).replace(' ', ' ')]), small: true, show: () => sim.cryo.step >= 4 },
+  { slider: 'cryoTarget', label: 'Target thickness', min: 50, max: 5000, log: true, fmt: (v) => `${Math.round(v)} nm`, inv: 'pattern', show: () => sim.cryo.step >= 4 },
+  { buttons: [['cryoMill', 'Mill both boxes'], ['cryoCoat', 'Final sputter coat']], show: () => sim.cryo.step >= 4 },
+
   { sec: 'Slice & view', modes: 'sv' },
   { slider: 'svSlice', label: 'Slice thickness', min: 5, max: 1000, log: true, fmt: (v) => `${Math.round(v)} nm` },
   { slider: 'svN', label: 'Slices', min: 10, max: 200, step: 1, fmt: (v) => `${v}`, inv: 'svN' },
@@ -151,6 +167,8 @@ const CONTROLS = [
   { exp: 'channel', title: 'Channelling contrast', desc: 'Polished nickel in the ion image: grains flash dark and bright as you tilt by a few degrees.', icon: 'grid' },
   { exp: 'charge', title: 'Charge it up', desc: 'An uncoated alumina inclusion at 15 kV. Watch it bloom, then find the voltage where it stops.', icon: 'bolt' },
   { exp: 'nano', title: 'Nanograins: EBSD vs TKD', desc: 'Copper interconnect grains with EBSD on a cross-section, then TKD on the lamella. Compare.', icon: 'grid' },
+  { exp: 'cryolam', title: 'A cryo lamella from a frozen cell', desc: 'Yeast in vitreous ice on a grid: sputter coat, cold GIS, grazing-angle milling to 200 nm for cryo-ET.', icon: 'cut' },
+  { exp: 'cryoions', title: 'Gallium vs argon in ice', desc: 'Collision cascades of Ga⁺ and Ar⁺ in vitreous ice: how deep each damages a cryo lamella.', icon: 'ions' },
   { exp: 'tour', title: 'Fly through the dual beam', desc: 'From the electron gun and the ion source down to the coincidence point.', icon: 'path' },
   { sec: 'Training scenarios' },
   { p: 'Tasks with a hidden answer, as on a real instrument. With your consent the session is recorded (no personal data) to study how people run a FIB-SEM; you can download it, replay it, or share it with the research dataset on Hugging Face.' },
@@ -228,7 +246,7 @@ function renderChips(b) {
     b.box.dataset.sig = sig; b.box.innerHTML = '';
     for (const [v, text] of opts) { const el = document.createElement('button'); el.className = 'chip'; el.textContent = text; el.dataset.v = JSON.stringify(v); el.addEventListener('click', () => chip(b.c.chips, v)); b.box.appendChild(el); }
   }
-  const cur = b.c.chips === 'icur' || b.c.chips === 'lamI' ? P.nearestCurrent(S.ion, S[b.c.chips]) : S[b.c.chips];
+  const cur = b.c.chips === 'icur' || b.c.chips === 'lamI' || b.c.chips === 'cryoI' ? P.nearestCurrent(S.ion, S[b.c.chips]) : S[b.c.chips];
   b.box.querySelectorAll('.chip').forEach((el) => el.classList.toggle('on', JSON.stringify(cur) === el.dataset.v));
 }
 function renderCustom(b) {
@@ -236,6 +254,9 @@ function renderCustom(b) {
     const pats = sim.mill.patterns.filter((p) => p.kind !== 'img').slice(-8).reverse();
     b.el.innerHTML = pats.length ? `<div class="patlist">${pats.map((p) => `<div class="pat ${p.status}"><b>#${p.id}</b><span>${p.kind === 'dep' ? `${p.gas} dep (${p.beam === 'e' ? 'e⁻' : p.ion})` : SHAPES[p.shape]} ${+p.w.toFixed(2)}×${+p.h.toFixed(2)} µm · ${P.fmtCurrent(p.I)}</span><i>${p.status === 'running' ? `${Math.round(p.done * 100)}%` : p.status === 'queued' ? `${(p.tEst / 60).toFixed(1)} min` : p.status}</i>${p.status === 'queued' ? `<button data-del="${p.id}" title="Remove">×</button>` : ''}</div>`).join('')}</div>` : '<p class="note">No patterns yet.</p>';
     b.el.querySelectorAll('[data-del]').forEach((x) => x.addEventListener('click', () => { sim.mill.remove(+x.dataset.del); refresh(); }));
+  } else if (b.c.custom === 'cryosteps') {
+    const C = sim.cryo, q = cryoQuality(C), hide = !!S.mis?.hideTruth;
+    b.el.innerHTML = `<ol class="lamsteps">${CRYO_STEPS.map((st, i) => `<li class="${i < C.step || C.done ? 'done' : i === C.step ? 'now' : ''}"><em>${i + 1}</em>${st.title}${st.id === 'relief' && C.step > 3 && !C.relief ? ' · skipped' : ''}</li>`).join('')}</ol>${C.step >= 4 && !hide ? `<p class="note">${q.t} nm · t/λ ${q.t_lambda} · ${q.verdict}</p>` : ''}`;
   } else if (b.c.custom === 'lamsteps') {
     const L = sim.lam;
     b.el.innerHTML = `<ol class="lamsteps">${LAM_STEPS.map((st, i) => `<li class="${i < L.step || (i === 7 && L.step > 7) ? 'done' : i === L.step ? 'now' : ''}"><em>${i + 1}</em>${st.title}${i === L.step && L.busy ? ' · running…' : ''}</li>`).join('')}</ol>`;
@@ -270,7 +291,7 @@ function refresh() {
 }
 
 // ------------------------------------------------------------------ state changes
-const QUIET = ['speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotate', 'paused', 'showHough', 'cross', 'realTime', 'svZ', 'svX', 'lamI', 'lamKV', 'lamTarget', 'lamOver'];
+const QUIET = ['cryoSputter', 'cryoGIS', 'cryoAngle', 'cryoRelief', 'cryoI', 'cryoTarget', 'cryoT', 'anticontam', 'speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotate', 'paused', 'showHough', 'cross', 'realTime', 'svZ', 'svX', 'lamI', 'lamKV', 'lamTarget', 'lamOver'];
 function set(key, v, inv = key) {
   if (S[key] === v) return;
   S[key] = v;
@@ -305,6 +326,8 @@ function setMode(m) {
 
 function blockedMsg(id) { $('#change').hidden = false; $('#change').innerHTML = `<small>Not in this task</small><p>${esc(id)} is disabled during this training task.</p>`; if (scn.recorder.active) scn.recorder.event('blocked', { id }); }
 function action(id) {
+  // the start/stop key (U, or the console's button) runs the cryo lamella's next step or milling pass
+  if (id === 'millToggle' && S.mode === 'cryo') id = sim.cryo.step >= 4 ? 'cryoMill' : 'cryoNext';
   if (scn.blocked(id)) return blockedMsg(id);
   if (scn.recorder.active && !id.startsWith('scn:')) scn.recorder.event('button', { id });
   if (id.startsWith('scn:')) { scn.start(id.slice(4)); return; }
@@ -321,7 +344,7 @@ function action(id) {
   if (id === 'millToggle') { if (sim.mill.active) sim.mill.stop(); else if (!sim.mill.start()) { $('#change').hidden = false; $('#change').innerHTML = '<small>Patterning</small><p>Nothing queued: drag on the ion image to draw a pattern, or press Add at centre.</p>'; } refresh(); }
   if (id === 'undoPattern') { const q = sim.mill.queued.pop?.() ?? sim.mill.queued[sim.mill.queued.length - 1]; if (q) sim.mill.remove(q.id); refresh(); }
   if (id === 'clearPatterns') { sim.mill.clearQueued(); refresh(); }
-  if (id === 'resetMill') { sim.mill.reset(); sim.lam = newLamella(); sim.invalidate('all'); refresh(); explain('spec'); }
+  if (id === 'resetMill') { sim.mill.reset(); sim.lam = newLamella(); sim.cryo = newCryoLamella(); sim.invalidate('all'); refresh(); explain('spec'); }
   if (id === 'lamNext') { const r = OPS.lamStep(S, sim); if (r) explainLam(r); refresh(); }
   if (id === 'lamReset') { sim.mill.reset(); sim.lam = newLamella(); sim.invalidate('all'); refresh(); explain(null); }
   if (id === 'lamThin') { const dt = OPS.lamThin(S, sim); if (dt == null) explainLamNotReady(); else explainLam('thin', dt); refresh(); }
@@ -332,6 +355,23 @@ function action(id) {
     S.tkdThick = clamp(Math.round(q.t_top), 20, 400); S.tkdAmorph = Math.max(...q.amorph);
     setMode('tkd');
     $('#change').hidden = false; $('#change').innerHTML = `<small>From the lamella</small><p>TKD on your lamella: ${q.t_top} nm thick with ${q.amorph[0]}/${q.amorph[1]} nm of amorphous damage on its faces${q.hole ? ' (and a hole)' : ''}. Thicker foils and thicker damage both blur the Kikuchi bands.</p>`;
+  }
+  if (id === 'cryoNext') { const dt0 = sim.cryo.time, r = OPS.cryoStep(S, sim); explainCryo(r, sim.cryo.time - dt0); refresh(); }
+  if (id === 'cryoReset') { runOp({ op: 'cryo', v: 'reset' }); explain(null); }
+  if (id === 'cryoMill') { const dt = OPS.cryoMill(S, sim); explainCryo(dt == null ? null : 'mill', dt); refresh(); }
+  if (id === 'cryoCoat') { const r = OPS.cryoCoat(S, sim); explainCryo(r ? 'coat' : null); refresh(); }
+  if (id === 'cryolam') {
+    OPS.modeState(S, sim, 'cryo', S.mode); OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'cryo', 'x');
+    Object.assign(S, { ion: 'Ga', ikV: 30, cryoAngle: 12, cryoRelief: true, cryoI: P.nearestCurrent('Ga', 1000), cryoTarget: 2500, cryoT: -190, anticontam: true });
+    sim.invalidate('all'); refresh();
+    note('Experiment · cryo lamella', 'Yeast cells frozen in <b>vitreous ice</b> on a gold grid, on a stage at −190 °C. First <b>Run next step</b> through the preparation: sputter coat (watch the charging in the SEM image disappear), the cold GIS layer, the milling angle and the relief cuts. Then mill both boxes, stepping the current down as the lamella thins: e.g. 1 nA → 2.5 µm, 300 pA → 800 nm, 100 pA → 400 nm, 30–50 pA → 200 nm. Finish with a sputter coat. Too much current on a thin slab warms it and the ice crystallises; dawdle and contamination grows on the faces.');
+  }
+  if (id === 'cryoions') {
+    OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'mc', S.mode);
+    Object.assign(S, { mcBeam: 'ion', ion: 'Ga', ikV: 30, mcIons: 300, cx: 30, cy: 30 });
+    sim.invalidate('all'); refresh();
+    const g = cryoDamage('Ga', 30), a = cryoDamage('Ar', 30), x = cryoDamage('Xe', 30);
+    note('Experiment · ions in ice', `30 keV <b>gallium</b> ions in vitreous ice: each cascade runs ~${Math.round(P.ionRange('Ga', 'Ice', 30).Rp)} nm deep, far deeper than in silicon, because ice is light and loose. Gallium also stays implanted. Switch the ion to <b>Ar⁺</b> or <b>Xe⁺</b> (Ion beam controls) and compare. In a 200 nm cryo lamella the damaged layer on each face is ~${Math.round(g)} nm with Ga, ~${Math.round(a)} nm with Ar and ~${Math.round(x)} nm with Xe: that is why plasma FIBs are winning for cryo-ET.`);
   }
   if (id === 'agent') return agent.connected || agent.status === 'connecting' ? agent.disconnect() : agent.connect();
   if (id === 'voiceHelp') voice.flash(`<b>What can I say?</b><p>${esc(HELP)}</p>`, 12000);
@@ -402,6 +442,15 @@ function explainLam(r, dt) {
   const st = LAM_STEPS.find((s) => s.id === r) ?? LAM_STEPS[L.step];
   note(`Lamella · ${st.title}`, `${st.text} ${r === 'liftout' ? 'The lamella now sits on the grid post, about a micrometre thick: thin it with the controls below.' : 'The patterns run in the ion view; the electron view on the right watches.'}`);
 }
+function explainCryo(r, dt = 0) {
+  const C = sim.cryo, q = cryoQuality(C), hide = !!S.mis?.hideTruth;
+  if (r == null) return note('Cryo lamella', C.lost ? 'The lamella is lost: press Start over.' : C.done ? 'This lamella is finished and coated: Start over for another.' : 'Run the preparation steps first (Run next step): milling starts after the milling angle and the relief cuts.');
+  if (r === 'mill') return note('Milling pass', `Both boxes at ${P.fmtCurrent(S.cryoI)}, ${S.ikV} kV, toward ${Math.round(S.cryoTarget)} nm: ${(dt / 60).toFixed(1)} min of instrument time.${hide ? ' Judge the thickness from the SEM view from above.' : ` Now ${q.t} nm, damaged ${q.damage.join(' / ')} nm on the faces, ${q.devit_pct} % devitrified.`}${C.bent ? ' <b>The lamella has bent</b>: the film was under stress.' : ''}${C.lost ? ' <b>It broke off.</b>' : ''}${C.devit > 0.15 && !hide ? ' <b>The ice has crystallised</b>: too much beam power for its thickness.' : ''}`);
+  if (r === 'coat') return note('Final sputter coat', `A few nm of Pt over the finished lamella: it will not charge in the cryo-TEM. ${hide ? '' : `Result: ${q.t_eff} nm (t/λ ${q.t_lambda}), ${q.intact} nm undamaged in the middle, ${q.contam_nm} nm of contamination per face: <b>${q.verdict}</b>. Instrument time ${q.time_min} min.`}`);
+  if (r === 'relief-skipped') return note('Cryo lamella · relief cuts skipped', 'No micro-expansion joints: the frozen film keeps its stress, and thin lamellae may bend.');
+  const st = CRYO_STEPS.find((x) => x.id === r);
+  note(`Cryo lamella · ${st.title}`, `${st.text}${r === 'angle' ? ` At ${C.angle}° the lamella will be ~${cryoLength(C).toFixed(0)} µm long.` : ''}${r === 'relief' ? ' Now mill: choose a current and a target thickness, and press <b>Mill both boxes</b>.' : ''}`);
+}
 function explainLamNotReady() { note('Lamella', 'Run the steps up to the lift-out first (Run next step): thinning works on the lamella once it is on the grid.'); }
 function autofocus() {
   const ion = beamNow() === 'ion', mis = S.mis ?? {};
@@ -461,6 +510,7 @@ function header() {
     gis: [`Ion view · ${P.DEP_GAS[S.depGas].name}`, `SEM at ${S.tilt}° · growth vs current density`],
     sv: ['Slice & view · the current face', 'Orthogonal slices · phase fractions'],
     lam: ['Lamella · ion view', 'SEM view of the face · thickness profile'],
+    cryo: [sim.cryo.step < 3 ? `Cryo · ion view of the frozen cells · ${P.ION[S.ion].name}` : `Cryo lamella · ion view at ${sim.cryo.angle}°`, sim.cryo.step < 3 ? `SEM at ${S.tilt}° · ${S.coated ? 'coated' : 'uncoated ice'}` : 'SEM from above · thickness through the lamella'],
     mc: [S.mcBeam === 'ion' ? `Ion collision cascades · ${P.ION[S.ion].name}` : 'Electron trajectories · side view', S.mcBeam === 'ion' ? 'Implantation, damage, sputtered atoms' : 'Backscatter energies & depth profiles'],
   }[S.mode];
   $('#detTitle').textContent = n[0]; $('#secTitle').textContent = n[1];
@@ -552,6 +602,7 @@ function runOp(op) {
       else if (o.op === 'analyze') { try { for (let i = 0; i < 3; i++) sim.update(0.05); o.result = analyze(sim, S, o.v ?? undefined); o.v = o.result.analysis; } catch (e) { o.error = e.message; } }
     },
   });
+  if (op.op === 'cryo' && op.done) explainCryo(op.v === 'next' ? op.done : op.v === 'mill' ? 'mill' : op.v === 'coat' ? 'coat' : null, typeof op.done === 'number' ? op.done : 0);
   if (op.op === 'lam' && op.done) explainLam(op.v === 'next' ? op.done : op.v, typeof op.done === 'number' ? op.done : 0);
   refresh();
   if (op.op === 'set' || op.op === 'chip') explain(op.k);
@@ -595,7 +646,7 @@ const agent = new AgentBridge({
 
 // ------------------------------------------------------------------ training scenarios and telemetry
 const scenarioApi = {
-  S, sim, version: `1.0.0+${document.querySelector('script[src*="main.js"]')?.getAttribute('src')?.split('v=')[1] ?? 'dev'}`,
+  S, sim, version: `1.1.0+${document.querySelector('script[src*="main.js"]')?.getAttribute('src')?.split('v=')[1] ?? 'dev'}`,
   setSpec: (v) => { OPS.specState(S, sim, v); }, setMode: (m) => { if (m === S.mode) return; OPS.modeState(S, sim, m, S.mode); },
   resetMill: () => { sim.mill.reset(); sim.lam = newLamella(); },
   download: (b, n) => download(b, n),
@@ -873,7 +924,7 @@ function frame(now) {
     if (S.mode === 'lam' && OPS.lamTick(sim)) { refresh(); explainLam(LAM_STEPS[sim.lam.step]?.id ?? 'thin', 0); }
     const act = sim.mill.active?.id ?? null;
     if (act !== lastActive) { lastActive = act; refresh(); }
-    const live = S.clarity === 'real' && (IMG.includes(S.mode) || S.mode === 'fib') && !S.paused;
+    const live = (S.clarity === 'real' && (IMG.includes(S.mode) || S.mode === 'fib') && !S.paused) || (S.mode === 'cryo' && now - lastDraw > 1000);
     if (sim.version !== lastVer || (live && now - lastDraw > 90) || redraw) {
       redraw = false;
       drawPopout();
@@ -893,7 +944,7 @@ function frame(now) {
     vPanel.update();
     if (!$('#panelCfg').hidden) { if (hwPanel.pad && !$('#pLive')) hwPanel.renderConfig($('#panelCfg .pBody')); hwPanel.renderLive($('#pLive')); }
     for (const b of bound) if ((b.c.custom || b.c.pFn) && !b.el.hidden) { if (b.c.custom) renderCustom(b); else b.el.textContent = b.c.pFn(); }
-    if (['ebsd', 'tkd', 'eds', 'mc', 'mill', 'gis', 'sv', 'lam', 'fib'].includes(S.mode)) renderInfo();
+    if (['ebsd', 'tkd', 'eds', 'mc', 'mill', 'gis', 'sv', 'lam', 'cryo', 'fib'].includes(S.mode)) renderInfo();
     $('#status').textContent = `· ${fps} fps`;
   }
   requestAnimationFrame(frame);

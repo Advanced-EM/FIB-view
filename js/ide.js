@@ -15,6 +15,7 @@ const EXAMPLES = [
   ['mill_rates.py', 'Milling rate: Ga vs Xe vs O'],
   ['cross_section.py', 'Mill a cross-section and image the face'],
   ['auto_focus_ion.py', 'Test automation: focus the ion beam'],
+  ['cryo_lamella.py', 'Cryo lamella: Ga vs Ar vs Xe'],
 ];
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch {} return null; };
 const esc = (t) => String(t).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
@@ -198,11 +199,12 @@ fv.show(img, "Ion-induced SE: channelling contrast in nickel")
 const HELP = `<p><b>import fibview as fv</b> · <b>fib = fv.connect()</b> gives this exhibit. The same script runs on a desktop
 (<code>pip install -e tools/fibview-py</code>), headless or driving an open exhibit: <code>fv.connect("live")</code>.</p>
 <table>
-<tr><td><code>fib.set(**settings)</code></td><td>mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stig, ion (Ga, Xe, Ar, N, O), ion_kV, ion_current_pA, ion_focus_um, ion_stig, detector, realistic, beam</td></tr>
+<tr><td><code>fib.set(**settings)</code></td><td>mode, specimen, kV, current_pA, wd_mm, tilt_deg, fov_um, focus_um, stig, ion (Ga, Xe, Ar, N, O), ion_kV, ion_current_pA, ion_focus_um, ion_stig, detector, realistic, beam; cryo: stage_temp_C, anticontaminator, milling_angle_deg, relief_cuts</td></tr>
 <tr><td><code>fib.state()</code></td><td>current settings, electron and ion probe sizes, sputter yield of what is under the beam</td></tr>
 <tr><td><code>fib.command(text)</code></td><td>a plain-language command: "switch to xenon", "mill a cross-section"</td></tr>
 <tr><td><code>fib.mill(shape, x, y, w, h, depth, gas=None)</code></td><td>add a pattern (rect, rcs, ccs, line, circle) and run it to completion; returns depth, volume and the measured volume yield</td></tr>
 <tr><td><code>fib.deposit(gas, x, y, w, h, thickness, beam="ion")</code></td><td>gas-assisted deposition: Pt, C or W</td></tr>
+<tr><td><code>fib.cryo(action, target_nm, current_pA)</code></td><td>the cryo lamella of frozen cells: "next" (sputter coat, cold GIS, milling angle, relief cuts), "mill", "coat", "reset"; returns the true quality (thickness, t/λ, damage, devitrification)</td></tr>
 <tr><td><code>a = fib.acquire()</code></td><td>record the detectors: <code>a.image</code>, <code>a.arrays</code>, <code>a.calibration</code>, <code>a.meta</code></td></tr>
 <tr><td><code>fib.analyze(name)</code></td><td>measure_resolution, measure_mill, fit_eds, ebsd_stats, sv_fractions, lamella_thickness, sputter_yield, with the true values</td></tr>
 <tr><td><code>fib.challenge(id, seed)</code></td><td>sem-focus-stig, fib-focus-stig or eucentric: a hidden misalignment for your algorithm; <code>fib.score()</code>, <code>fib.reveal()</code>, <code>fib.end_challenge()</code></td></tr>

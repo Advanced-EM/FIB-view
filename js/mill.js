@@ -342,3 +342,99 @@ export function lamQuality(L) {
   const tBot = lamThickness(L, 3), crys = Math.max(0, L.t_top - L.amorph[0] - L.amorph[1]);
   return { t_top: Math.round(L.t_top), t_bottom: Math.round(tBot), crystalline: Math.round(crys), amorph: L.amorph.map((v) => +v.toFixed(1)), ga: +L.ga.toFixed(1), curtain: +L.curtain.toFixed(2), bent: L.bent, hole: L.hole, time_min: +(L.time / 60).toFixed(1) };
 }
+
+// ================================================================= cryo lamella (on-grid, no lift-out)
+// A frozen cell on the grid is milled from both sides at a grazing angle (8–20° to the grid) until a slab ~150–250 nm
+// thick is left in the middle, thin enough for cryo-electron tomography. The specimen must stay vitreous (below
+// ≈ −137 °C, and without beam heating) and clean (amorphous ice from the residual water grows on cold surfaces).
+export const CRYO_STEPS = [
+  { id: 'sputter', title: 'Sputter coat', text: 'The stage moves under the in-chamber sputter target: a few nm of Pt make the ice conductive so neither beam charges it.' },
+  { id: 'gis', title: 'Organometallic Pt (cold GIS)', text: 'The GIS valve opens with the beams off: the precursor condenses on the cold grid as a ~1 µm organometallic layer, not decomposed. It mills ~10× slower than ice and protects the front edge.' },
+  { id: 'angle', title: 'Milling angle', text: 'Tilt the stage so the ion beam skims the grid at 8–20° (stage tilt − 7° on a 45° pre-tilted shuttle). Shallow angles give longer lamellae; steep ones are shorter but easier.' },
+  { id: 'relief', title: 'Micro-expansion joints', text: 'Two narrow slits beside the lamella site let the film relax: without them, the stress in the grid bends thin lamellae.' },
+  { id: 'rough', title: 'Rough milling', text: 'Boxes above and below the lamella at 0.5–1 nA remove the bulk, down to ~1–3 µm.' },
+  { id: 'fine', title: 'Fine milling', text: 'Lower currents (100–300 pA) bring both faces to ~500 nm, keeping the beam tails away from the slab.' },
+  { id: 'polish', title: 'Polishing', text: '10–50 pA, alternating faces, to a final 150–250 nm. Done last and fast: ice contamination grows on the fresh faces.' },
+  { id: 'coat', title: 'Final sputter coat', text: 'A last few nm of Pt make the lamella conductive for the tilt series in the cryo-TEM. Then the grid goes back under liquid nitrogen.' },
+];
+// the slab is 12 µm wide; the region of interest is this thick before milling (cell + ice, nm)
+const CRYO_W = 12;
+// gallium also implants and reacts: its damaged layer in vitreous samples is deeper than the plasma ions' (~50 vs ~20–30 nm)
+export const cryoDamage = (ion, kV) => P.ionRange(ion, 'Cyto', kV).damage * (ion === 'Ga' ? 1.25 : 0.62);
+export function newCryoLamella(rng = Math.random) {
+  return {
+    step: 0, t: 5200, t0: 5200, wedge: 0, damage: [0, 0], damageKV: 30, implant: 0, devit: 0, contam: 0, curtain: 0, coat: 0, gis: 0, gisLeft: 0,
+    angle: 0, relief: false, bent: false, lost: false, hole: false, coatFinal: false, time: 0, done: false,
+    offset: (rng() - 0.5) * 80, drift: (rng() - 0.5) * 40, log: [], ion: 'Ga', T: -190, lastT: 0, charging: 0,
+  };
+}
+// length of the lamella along the beam (µm): the frozen cell seen at a grazing angle
+export const cryoLength = (C) => Math.min(40, (C.t0 / 1000) / Math.sin(Math.max(4, C.angle || 12) * P.DEG));
+// the automatic preparation steps; o: { sputter (s), gis (s), angle (deg), relief (bool), T (°C), anticontam }
+export function cryoPrep(C, id, o = {}) {
+  if (id === 'sputter') { const nm = 0.5 * (o.sputter ?? 15); if (C.step >= 7) { C.coatFinal = true; C.coat += nm; C.done = true; } else C.coat += nm; C.time += (o.sputter ?? 15) + 60; }
+  if (id === 'gis') { const um = 0.045 * (o.gis ?? 20) * (o.T > -150 ? 0.4 : 1); C.gis += um; C.gisLeft += um; C.time += (o.gis ?? 20) + 90; }
+  if (id === 'angle') { C.angle = o.angle ?? 12; C.time += 120; }
+  if (id === 'relief') { C.relief = o.relief !== false; C.time += C.relief ? 240 : 0; }
+  C.log.push({ step: id, ...o });
+  cryoAge(C, 0, o);
+  return id;
+}
+// what happens to a frozen specimen while time passes: contamination grows, warm stages devitrify
+export function cryoAge(C, dt, o = {}) {
+  const T = o.T ?? C.T, rate = (o.anticontam === false ? 1.2 : 0.12) * (T > -170 ? 0.6 : 1); // nm/min on each face
+  C.T = T;
+  C.contam += rate * dt / 60;
+  if (T > -137) C.devit = Math.min(1, C.devit + (dt / 60) * 0.02 * Math.exp((T + 137) / 8));
+}
+// one milling pass on both faces: ion, current I (pA), kV, target thickness (nm)
+export function cryoPass(C, { ion = 'Ga', I = 300, kV = 30, target = 1000, T = -190, anticontam = true }) {
+  const pr = P.ionProbe(ion, I, kV), sig = pr.d / 2.355, before = C.t;
+  if (C.lost || before <= 0) return 0;
+  const err = (C.offset * 0.2 + C.drift) * Math.min(1, sig / 25) + (Math.random() - 0.5) * sig * 0.6;
+  let t = Math.max(target, 0) + Math.abs(err) * 0.6 - sig * 0.15;
+  // the organometallic layer protects the front edge; once it is gone, the beam tails eat into the slab
+  C.gisLeft = Math.max(0, C.gisLeft - (0.015 + pr.d / 3000) * (kV / 30) * (1 + (before - Math.max(t, 0)) / 4000));
+  if (C.gisLeft <= 0.05) t -= pr.d * 0.4;
+  t = Math.min(before, t);
+  // wedge: the beam's natural taper (cryo lamellae are not over-tilted, the wedge is trimmed by the polishing passes)
+  const taper = (ion === 'Ga' ? 0.9 : 0.7) + (I > 1000 ? 0.5 : 0);
+  if (before - t > 30) C.wedge = Math.max(0, taper * (t < 400 ? 0.6 : 1));
+  // damage layer of each face from the last glancing pass; contamination on a face is milled away with it
+  const dmg = cryoDamage(ion, kV);
+  if (before - t > 2 * dmg || kV < C.damageKV) { C.damage = [dmg * (1 + err / 300), dmg * (1 - err / 300)]; C.damageKV = kV; }
+  if (before - t > 4) C.contam = 0;
+  // beam heating: the thin slab conducts heat poorly; too much power for its thickness devitrifies it
+  const risk = (I * (kV / 30)) / (0.5 * Math.max(20, t));
+  if (risk > 1) C.devit = Math.min(1, C.devit + 0.12 * (risk - 1));
+  // stress in the frozen film bends thin lamellae unless relieved by micro-expansion joints
+  const stress = (C.relief ? 0.25 : 1) * (0.85 + 0.3 * Math.random());
+  if (t < 600 && stress * (500 / Math.max(20, t)) > 1.6) C.bent = true;
+  if (C.bent && I > 150 && t < 400) C.lost = true;
+  if (t <= 10 || t - C.damage[0] - C.damage[1] < 0) { C.hole = true; t = Math.max(0, t); }
+  C.curtain = Math.max(0, C.curtain * 0.5 + (C.gis < 0.4 ? 0.6 : 0.2) * (C.gisLeft > 0.1 ? 0.6 : 1.4));
+  if (ion === 'Ga') C.implant = Math.min(6, C.implant + 0.6 * (kV / 30));
+  // time: both boxes, the full length of the lamella, through the removed thickness
+  const V = ((before - t) / 1000) * CRYO_W * cryoLength(C) * 0.6, Yv = P.sputter(ion, 'Ice', kV).Yv;
+  const dt = V / ((I / 1000) * Yv) + 45;
+  C.time += dt; C.t = t; C.ion = ion;
+  cryoAge(C, dt, { T, anticontam });
+  C.contam = Math.min(C.contam, 0.12 * dt / 60 * (anticontam === false ? 10 : 1)); // what grew since this pass ended its face
+  C.drift = (Math.random() - 0.5) * 40;
+  C.step = Math.max(C.step, t > 1000 ? 4 : t > 400 ? 5 : 6);
+  C.log.push({ I, kV, target, t: Math.round(t), devit: +C.devit.toFixed(3), dt: Math.round(dt) });
+  return dt;
+}
+// quality for cryo-ET: thickness incl. contamination, t/λ (inelastic mean free path ≈ 350 nm at 300 kV), the share of
+// the slab inside the damaged layers, devitrification
+export function cryoQuality(C) {
+  const tEff = C.t + 2 * C.contam + (C.coatFinal ? 2 * C.coat * 0.3 : 0), good = Math.max(0, C.t - C.damage[0] - C.damage[1]);
+  const q = {
+    t: Math.round(C.t), t_eff: Math.round(tEff), t_bottom: Math.round(C.t + 2 * 3000 * Math.tan(C.wedge * P.DEG)), t_lambda: +(tEff / 350).toFixed(2),
+    damage: C.damage.map((v) => +v.toFixed(1)), intact: Math.round(good), damage_frac: C.t ? +((C.damage[0] + C.damage[1]) / C.t).toFixed(2) : 1,
+    devit_pct: Math.round(C.devit * 100), contam_nm: +C.contam.toFixed(1), ga: +C.implant.toFixed(1), curtain: +C.curtain.toFixed(2), angle: C.angle, length_um: +cryoLength(C).toFixed(1),
+    bent: C.bent, lost: C.lost, hole: C.hole, coated: C.coatFinal, time_min: +(C.time / 60).toFixed(1),
+  };
+  q.verdict = C.lost ? 'Lost' : C.hole ? 'Holed' : C.devit > 0.15 ? 'Devitrified' : q.t_eff > 400 ? 'Too thick for cryo-ET' : q.t_eff < 90 ? 'Very thin: little volume left' : q.t_eff <= 250 && q.damage_frac < 0.5 && !C.bent ? 'Ready for cryo-ET' : 'Usable';
+  return q;
+}

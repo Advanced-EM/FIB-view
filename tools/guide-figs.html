@@ -29,7 +29,7 @@ import { defaultState } from '../js/state.js';
 import * as OPS from '../js/ops.js';
 import * as R2 from '../js/render2d.js';
 import { Scene3D } from '../js/scene3d.js';
-import { lamQuality, newLamella } from '../js/mill.js';
+import { lamQuality, newLamella, cryoQuality, cryoAge, cryoDamage, cryoLength } from '../js/mill.js';
 import { analyze } from '../js/analyze.js';
 
 const $ = (s) => document.querySelector(s), log = (t) => ($('#log').textContent = t);
@@ -124,6 +124,49 @@ async function scripting() {
   for (const [tag, f] of [['far', 0], ['near', 40], ['best', 60]]) { S.ifocus = f; sim.invalidate('ifocus'); settle(sim, S); draw(sim, S); await shot(mCv, `py_focus_${tag}`); }
 }
 
+// ---------------------------------------------------------------- SOP-03 cryo lamella
+async function cryo() {
+  const rnd = Math.random; Math.random = P.mulberry32(2026); // the same lamella every time the figures are made
+  let { S, sim } = fresh();
+  const cryoNew = () => { ({ S, sim } = fresh()); OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'cryo', 'se'); Object.assign(S, { ion: 'Ga', cryoAngle: 12, cryoRelief: true, kV: 3, current: 25 }); sim.invalidate('all'); };
+  const sem = (name) => shot(sCv, name, [0, 0, sCv.height, sCv.height]);
+  const wide = (name) => shot(sCv, name);
+  cryoNew();
+  S.fov = 40; settle(sim, S); draw(sim, S); await shot(mCv, 'cr_site_ion'); await sem('cr_site_sem_uncoated');
+  OPS.cryoStep(S, sim); settle(sim, S); draw(sim, S); await sem('cr_site_sem_coated');
+  OPS.cryoStep(S, sim); OPS.cryoStep(S, sim); OPS.cryoStep(S, sim);
+  settle(sim, S); draw(sim, S); await shot(mCv, 'cr_angle_ion');
+  numbers.cryo = { t0: sim.cryo.t0, length_um: +cryoLength(sim.cryo).toFixed(1), gis_um: +sim.cryo.gis.toFixed(2), coat_nm: sim.cryo.coat, prep_min: +(sim.cryo.time / 60).toFixed(1), passes: [] };
+  const recipe = [[1000, 2500, 'rough'], [300, 800, 'fine'], [100, 400, 'fine2'], [30, 200, 'polish']];
+  for (const [I, T, tag] of recipe) {
+    const t0 = sim.cryo.time; OPS.cryoMill(S, sim, { I, target: T });
+    const q = cryoQuality(sim.cryo); numbers.cryo.passes.push({ I: S.cryoI, T, t: q.t, damage: q.damage, devit: q.devit_pct, min: +((sim.cryo.time - t0) / 60).toFixed(1) });
+    settle(sim, S, 1); draw(sim, S); await shot(mCv, `cr_${tag}_ion`); await wide(`cr_${tag}_sem`);
+  }
+  OPS.cryoCoat(S, sim); settle(sim, S, 1); draw(sim, S); await wide('cr_coat_sem');
+  numbers.cryo.final = cryoQuality(sim.cryo);
+  // the same recipe with each species
+  numbers.cryo.species = {};
+  for (const ion of ['Ga', 'Ar', 'Xe']) {
+    cryoNew(); OPS.setIon(S, sim, ion); for (let i = 0; i < 4; i++) OPS.cryoStep(S, sim);
+    for (const [I, T] of recipe) OPS.cryoMill(S, sim, { I, target: T });
+    OPS.cryoCoat(S, sim); numbers.cryo.species[ion] = cryoQuality(sim.cryo);
+  }
+  numbers.cryo.damage = Object.fromEntries(['Ga', 'Ar', 'Xe'].map((ion) => [ion, Object.fromEntries([30, 16, 8, 5].map((kV) => [kV, +cryoDamage(ion, kV).toFixed(1)]))]));
+  numbers.cryo.rangeIce = Object.fromEntries(['Ga', 'Ar', 'Xe'].map((ion) => [ion, +P.ionRange(ion, 'Ice', 30).Rp.toFixed(1)]));
+  numbers.cryo.yv = Object.fromEntries(['Ice', 'Cyto', 'Lipid', 'PtCryo', 'Si'].map((m) => [m, +P.sputter('Ga', m, 30).Yv.toFixed(2)]));
+  // what goes wrong
+  const wrong = async (tag, f) => { cryoNew(); for (let i = 0; i < 4; i++) OPS.cryoStep(S, sim); f(); settle(sim, S, 1); draw(sim, S); await wide(`cr_${tag}_sem`); await shot(mCv, `cr_${tag}_ion`); return cryoQuality(sim.cryo); };
+  numbers.cryo.rushed = await wrong('devit', () => OPS.cryoMill(S, sim, { I: 1000, target: 250 }));
+  numbers.cryo.norelief = await wrong('bent', () => { sim.cryo.relief = false; for (const [I, T] of recipe) OPS.cryoMill(S, sim, { I, target: T }); });
+  numbers.cryo.noshield = await wrong('contam', () => { S.anticontam = false; for (const [I, T] of recipe) OPS.cryoMill(S, sim, { I, target: T }); cryoAge(sim.cryo, 900, { T: S.cryoT, anticontam: false }); });
+  // cryo slice & view of high-pressure-frozen yeast
+  ({ S, sim } = fresh()); OPS.specState(S, sim, 'hpf'); OPS.modeState(S, sim, 'sv', 'se'); S.svN = 40;
+  for (let i = 0; i < 80; i++) sim.update(0.4);
+  draw(sim, S); await shot(mCv, 'cr_sv'); numbers.cryo.sv = sim.svFractions();
+  Math.random = rnd;
+}
+
 // ---------------------------------------------------------------- covers: the 3D instrument
 async function covers() {
   const g = $('#g'), scene = new Scene3D(g, $('#lbl'));
@@ -137,12 +180,14 @@ async function covers() {
     await shot(g, name);
   };
   await render('lo_cover', () => { OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'lam', 'se'); sim.lam.step = 6; sim.lam.liftedOut = true; }, { pos: [9, 6, 10], target: [0, 2.4, -1] });
+  await render('cr_cover', () => { OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'cryo', 'se'); for (let i = 0; i < 4; i++) OPS.cryoStep(S, sim); }, { pos: [7.5, 5.2, 9], target: [0, 2.2, -1.2] });
   await render('py_cover', () => { OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'mill', 'se'); OPS.setIon(S, sim, 'Xe'); S.icur = 60000; OPS.addPattern(S, sim, { shape: 'rcs', w: 16, h: 8, depth: 6 }); sim.mill.start(); }, { pos: [16, 8.5, 15], target: [0, 3.2, -1.6] });
 }
 
 try {
   log('lift-out…'); await liftout();
   log('scripting…'); await scripting();
+  log('cryo…'); await cryo();
   log('covers…'); await covers();
   await post('numbers.json', JSON.stringify(numbers, null, 1), 'application/json');
   log('done'); await fetch('/done', { method: 'POST' });

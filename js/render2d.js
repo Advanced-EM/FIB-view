@@ -1,7 +1,7 @@
 // Detector views for the FIB-SEM exhibit.
 import * as P from './physics.js';
 import { blurred } from './sim.js';
-import { lamQuality, lamThickness, LAM_STEPS, SHAPES } from './mill.js';
+import { lamQuality, lamThickness, LAM_STEPS, SHAPES, CRYO_STEPS, cryoQuality, cryoLength } from './mill.js';
 
 export const C = { accent: '#6fd6ff', warm: '#ffb45e', text: '#e9edf2', muted: '#8a94a3', dim: '#566070', grid: 'rgba(255,255,255,0.07)', bg: '#06080b', green: '#5fe3a8' };
 const MONO = '"IBM Plex Mono", ui-monospace, monospace';
@@ -100,7 +100,7 @@ export function draw(sim, S, mainCv, secCv, hover) {
   const m = fit(mainCv), s = fit(secCv);
   m.ctx.fillStyle = C.bg; m.ctx.fillRect(0, 0, m.W, m.H);
   s.ctx.fillStyle = C.bg; s.ctx.fillRect(0, 0, s.W, s.H);
-  ({ se: drawImage, inlens: drawImage, bse: drawImage, ebsd: drawMap, tkd: drawMap, eds: drawEDS, mc: drawMC, fib: drawIon, mill: drawMill, gis: drawMill, lam: drawLam, sv: drawSV })[S.mode](sim, S, m, s, hover);
+  ({ se: drawImage, inlens: drawImage, bse: drawImage, ebsd: drawMap, tkd: drawMap, eds: drawEDS, mc: drawMC, fib: drawIon, mill: drawMill, gis: drawMill, lam: drawLam, cryo: drawCryo, sv: drawSV })[S.mode](sim, S, m, s, hover);
   if (S.mis?.cross || S.cross) crosshair(m.ctx, m.W, m.H, m.dpr);
 }
 
@@ -590,7 +590,7 @@ function drawMill(sim, S, m, s) {
   const a = sim.mill.active;
   label(ctx, `ion view · ${P.ION[S.ion].name} ${S.ikV} kV · ${fmtI(S.icur)} · tilt ${S.tilt}°${S.mode === 'gis' ? ` · ${P.DEP_GAS[S.depGas].name}` : S.gas !== 'none' ? ` · ${S.gas}` : ''}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
   if (a) label(ctx, `${a.kind === 'dep' ? 'DEPOSITING' : 'MILLING'} #${a.id} · ${Math.round(a.done * 100)} % · ${(a.t / 60).toFixed(1)} / ${(a.tEst / 60).toFixed(1)} min${sim.millAccel > 1.5 ? ` · ×${Math.round(sim.millAccel)}` : ''}`, 8 * dpr, 16 * dpr, dpr, { color: C.warm });
-  else if (!layout.quiet && !sim.mill.patterns.some((p) => p.kind !== 'img')) label(ctx, 'drag on the image to draw a pattern', W / 2, H / 2, dpr, { color: C.text, align: 'center' });
+  else if (!layout.quiet && S.mode !== 'cryo' && !sim.mill.patterns.some((p) => p.kind !== 'img')) label(ctx, 'drag on the image to draw a pattern', W / 2, H / 2, dpr, { color: C.text, align: 'center' });
   else if (sim.mill.queued.length) label(ctx, `${sim.mill.queued.length} pattern(s) queued: press Start`, 8 * dpr, 16 * dpr, dpr, { color: C.accent });
   // secondary: the electron image of the same place, and a profile through the pattern
   const q = s.ctx, d = s.dpr, sz = Math.min(s.H, s.W * 0.56);
@@ -599,6 +599,7 @@ function drawMill(sim, S, m, s) {
     label(q, `SEM ${S.kV} kV · ${S.tilt}° view`, 6 * d, sz - 12 * d, d, { color: C.muted, size: 8.5 });
   }
   if (S.mode === 'gis') drawDepCurve(sim, S, q, sz + 12 * d, d, s.W - sz - 20 * d, s.H);
+  else if (S.mode === 'cryo') drawCryoStatus(sim, S, q, sz + 12 * d, d);
   else drawProfile(sim, S, q, sz + 12 * d, d, s.W - sz - 20 * d, s.H);
 }
 const rangeLH = (a) => { const [lo, hi] = range(a, 0.004, 0.996); return { lo, hi }; };
@@ -716,6 +717,122 @@ function drawLam(sim, S, m, s) {
   label(q, '100 nm', X(100) + 3 * d, y0 + h - 8 * d, d, { color: C.green, size: 8 });
   const qq = lamQuality(L);
   label(q, `crystal ${qq.crystalline} nm · Ga ${qq.ga}%`, x0, s.H - 12 * d, d, { color: C.text, size: 8.5 });
+}
+
+// ------------------------------------------------------------------ cryo lamella
+// the state of the frozen specimen while the site is prepared
+function drawCryoStatus(sim, S, q, x0, d) {
+  const Cq = sim.cryo, T = S.cryoT, rows = [
+    ['Stage', `${Math.round(T)} °C`, T > -137 ? C.warm : C.green],
+    ['Ice', T > -137 ? 'devitrifying' : `vitreous · ${Math.round(Cq.devit * 100)} % crystalline`, Cq.devit > 0.05 ? C.warm : C.green],
+    ['Sputtered Pt', Cq.coat ? `${Math.round(Cq.coat)} nm` : 'none: ice charges above 1.6 kV', Cq.coat ? C.green : C.warm],
+    ['Cold GIS layer', Cq.gis ? `${Cq.gis.toFixed(1)} µm organometallic Pt` : 'none yet', Cq.gis ? C.green : C.muted],
+    ['Milling angle', Cq.angle ? `${Cq.angle}° · lamella ~${cryoLength(Cq).toFixed(0)} µm long` : `planned ${S.cryoAngle}°`, C.text],
+    ['Anticontaminator', S.anticontam ? 'in' : 'out: contamination ×10', S.anticontam ? C.green : C.warm],
+  ];
+  label(q, 'the frozen specimen', x0, 9 * d, d, { color: C.muted, size: 9 });
+  rows.forEach(([k, v, col], i) => { label(q, k, x0, (32 + i * 30) * d, d, { color: C.muted, size: 8.5 }); label(q, v, x0, (46 + i * 30) * d, d, { color: col, size: 9 }); });
+}
+function drawCryo(sim, S, m, s) {
+  const Cq = sim.cryo, hide = !!S.mis?.hideTruth, { ctx, W, H, dpr } = m, step = Math.min(7, Cq.step);
+  const head = `Step ${step + 1}/8 · ${CRYO_STEPS[step].title}${Cq.done ? ' · done' : ''} · stage ${Math.round(S.cryoT)} °C`;
+  if (Cq.step < 3) {
+    // preparing the site: the real ion image of the clump (charging until it is sputter coated), and the SEM view
+    drawMill(sim, S, m, s);
+    const sc = W / S.fov, bw = 12 * sc, bh = 2.4 * sc;
+    ctx.strokeStyle = 'rgba(111,214,255,0.8)'; ctx.setLineDash([4 * dpr, 3 * dpr]); ctx.lineWidth = 1.2 * dpr;
+    ctx.strokeRect(W / 2 - bw / 2, H / 2 - bh / 2, bw, bh); ctx.setLineDash([]);
+    label(ctx, 'lamella site', W / 2, H / 2 - bh / 2 - 10 * dpr, dpr, { color: C.accent, size: 8.5, align: 'center' });
+    label(ctx, head, 8 * dpr, 36 * dpr, dpr, { color: C.accent });
+    return;
+  }
+  // the ion view at the milling angle: the frozen cells foreshortened into a long mound of ice, milled from both
+  // sides; the lamella is the bright slab left between the two dark trenches (thickness drawn ×4)
+  const sc = Math.min(W / 30, H / 18), len = cryoLength(Cq), ex = 4, q0 = cryoQuality(Cq), sp = P.SPECIMENS.cell;
+  const tPx = (t) => Math.max(1.2 * dpr, (t / 1000) * sc * ex), milled = Cq.step >= 4 && Cq.t < Cq.t0;
+  const slab = tPx(Cq.t) / sc, boxH = milled ? Math.min(5.5, (tPx(Cq.t0 - Cq.t) / 2) / sc + 1.2) : 0; // µm on screen
+  const n = 300, nz = Math.round((n * H) / W), U = W / sc / 2, V = H / sc / 2, arr = new Float32Array(n * nz);
+  const ise = P.iseYield(S.ion, 'Ice', S.ikV), sn = Math.sin(Math.max(4, Cq.angle) * P.DEG);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < n; i++) {
+    const u = -U + (2 * U * (i + 0.5)) / n, v = V - (2 * V * (j + 0.5)) / nz, e = (u / 13) ** 2 + (v / 6.2) ** 2;
+    const bend = Cq.bent ? 0.6 * (1 - (u / 6) ** 2) : 0, inW = Math.abs(u) < 6, dv = Math.abs(v - bend);
+    let val;
+    if (Cq.relief && Math.abs(Math.abs(u) - 9) < 0.25 && Math.abs(v) < 4) val = 0.03;
+    else if (inW && milled && dv < slab / 2) val = Cq.lost ? 0.03 : 0.95 * ise * (0.9 + 0.2 * P.vnoise(u * 3, v * 9, 5));
+    else if (inW && milled && dv < slab / 2 + boxH && e < 1.15) {
+      // looking down a trench: dark, a little light from its floor, curtains streaking down the faces
+      const f = (dv - slab / 2) / boxH;
+      val = ise * (0.06 + 0.16 * f + Cq.curtain * 0.25 * (P.vnoise(u * 5, 0.5, 77) - 0.4) * (1 - f));
+    } else if (e < 1) {
+      // the mound's surface, lit by the ion-induced electrons; the cells underneath raise it in bumps
+      const h = sp.top(u, -v / sn * 0.25, 0.1), hx = sp.top(u + 0.3, -v / sn * 0.25, 0.1) - h;
+      val = ise * (0.75 + 0.35 * (1 - e) + 0.6 * hx + 0.08 * P.vnoise(u * 2, v * 4, 3)) * (Cq.gis > 0 ? 1.12 : 1);
+      if (Cq.gis > 0 && e > 0.955 && v > 0) val += ise * 0.6 * Math.min(1, Cq.gisLeft + 0.2); // the Pt layer catches the beam at the edge
+    } else {
+      // the grid film far below, in the mound's shadow near it
+      val = ise * (0.2 + 0.05 * P.vnoise(u * 0.7, v * 2, 8)) * clamp(0.5 + 0.5 * (e - 1), 0.5, 1);
+    }
+    arr[j * n + i] = val;
+  }
+  paint(ctx, arr, n, nz, [0, 0, W, H], { lo: 0, hi: ise * 1.25, lut: real(S) ? LUT.gray : LUT.ion, noise: real(S) ? Math.max(3, S.icur * 0.6) : 0 });
+  const cx = W / 2, cy = H / 2;
+  if (Cq.lost) label(ctx, 'the lamella broke off', cx, cy, dpr, { color: C.warm, align: 'center' });
+  if (Cq.step >= 4) {
+    ctx.strokeStyle = 'rgba(111,214,255,0.55)'; ctx.setLineDash([3 * dpr, 3 * dpr]); ctx.lineWidth = 1 * dpr;
+    const tb = tPx(S.cryoTarget);
+    ctx.strokeRect(cx - 6 * sc, cy - tb / 2 - 4 * sc, 12 * sc, 4 * sc); ctx.strokeRect(cx - 6 * sc, cy + tb / 2, 12 * sc, 4 * sc); ctx.setLineDash([]);
+    label(ctx, `next pass: ${fmtI(S.cryoI)} to ${Math.round(S.cryoTarget)} nm`, cx, cy - tb / 2 - 4.8 * sc, dpr, { color: C.accent, size: 8.5, align: 'center' });
+  }
+  label(ctx, `ion view at ${Cq.angle}° to the grid (thickness ×${ex}) · ${P.ION[S.ion].name} ${S.ikV} kV · lamella ${len.toFixed(0)} µm long`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
+  label(ctx, head, 8 * dpr, 16 * dpr, dpr, { color: C.accent });
+  if (!hide) label(ctx, `${q0.t} nm${q0.contam_nm >= 1 ? ` + ${q0.contam_nm} nm ice contamination per face` : ''}${Cq.devit > 0.02 ? ` · ${q0.devit_pct} % devitrified` : ''}${Cq.bent ? ' · BENT' : ''}${Cq.hole ? ' · HOLE' : ''}`, 8 * dpr, 36 * dpr, dpr, { color: Cq.bent || Cq.lost || Cq.devit > 0.15 ? C.warm : C.text, size: 9 });
+
+  // secondary: the SEM looking down on the lamella (thin ice brightens at low kV; crystalline patches speckle)
+  const q = s.ctx, d = s.dpr, fw = Math.min(s.W * (hide ? 1 : 0.55), s.H * 1.5), fh = Math.min(s.H, fw / 1.5);
+  const sn2 = 150, snz = 100, sarr = new Float32Array(sn2 * snz), Rk = P.rangeKO(P.MAT.Ice, S.kV) * 1000;
+  for (let j = 0; j < snz; j++) for (let i = 0; i < sn2; i++) {
+    const x = -9 + (18 * (i + 0.5)) / sn2, y = -6 + (12 * (j + 0.5)) / snz, inLam = Math.abs(x) < 6 && Math.abs(y) < 3.2, inBox = Math.abs(x) < 6 && Math.abs(y) < 5;
+    let v;
+    if (Cq.step >= 4 && inBox && !inLam) v = 0.04; // the milled-away trenches either side of the slab (seen through)
+    else if (inLam && Cq.step >= 4) {
+      if (Cq.lost) { v = 0.02; sarr[j * sn2 + i] = v; continue; }
+      const z = (y + 3.2) / 6.4, t = Cq.t + 2 * z * 3000 * Math.tan(Cq.wedge * P.DEG) * 0.5 + 2 * Cq.contam;
+      if (Cq.hole && Math.abs(x) < 1.2 && z < 0.25) { sarr[j * sn2 + i] = 0.02; continue; }
+      // what the slab cuts through: the cells along the lamella plane, tilted at the milling angle
+      const uu = (y / 3.2) * (cryoLength(Cq) / 2), mk = P.SPECIMENS.cell.vol(x * 0.6, uu * Math.cos(Cq.angle * P.DEG), 2.1 + uu * Math.sin(Cq.angle * P.DEG)).mat;
+      const lv = mk === 'vac' ? 0.5 : (P.delta(P.MAT[mk], S.kV) * 0.6 + P.eta(P.MAT[mk].Z) * 0.6) / 0.3;
+      v = (0.35 + 0.9 * Math.exp(-t / (0.5 * Rk))) * (0.55 + 0.45 * lv);
+      if (!S.coated && !Cq.coatFinal && S.kV > 1.6) v += 0.5 * P.vnoise(x * 0.8, y * 3, 9); // charging streaks
+      v *= 1 + Cq.curtain * 0.35 * (P.vnoise(x * 6, 0.5, 77) - 0.5);
+      if (Cq.devit > 0.02 && P.hash(i >> 1, j >> 1, 41) < Cq.devit) v *= 1.6; // crystalline ice diffracts: bright specks
+    } else {
+      v = 0.3 + 0.12 * P.vnoise(x * 0.6, y * 0.6, 3) + (Math.abs(x) < 6.5 && Math.abs(y) < 7 && Cq.gis > 0 ? 0.08 : 0);
+      if (Cq.relief && Math.abs(Math.abs(x) - 8) < 0.3 && Math.abs(y) < 4) v = 0.04;
+    }
+    if (Cq.contam > 0.5 && P.hash(i, j, 61) < Math.min(0.08, Cq.contam / 300)) v *= 0.55; // contamination specks
+    sarr[j * sn2 + i] = v;
+  }
+  paint(q, sarr, sn2, snz, [0, 0, fw, fh], { lo: 0, hi: 1.4, lut: real(S) ? LUT.gray : LUT.sem, noise: real(S) ? 40 : 0 });
+  label(q, `SEM ${S.kV} kV · the lamella from above`, 6 * d, fh - 12 * d, d, { color: C.muted, size: 8.5 });
+  if (hide) return;
+  // side profile: Pt layer, slab with damaged faces (red) and contamination (blue), the target window for cryo-ET
+  const x0 = fw + 16 * d, w = s.W - x0 - 10 * d, y0 = 22 * d, h = s.H - y0 - 34 * d, tMax = Math.max(500, Cq.t * 1.15);
+  const X = (t) => x0 + w / 2 + (t / 2 / tMax) * w, Z = (z) => y0 + z * h;
+  const tz = (z) => Cq.t + 2 * z * 3000 * Math.tan(Cq.wedge * P.DEG) * 0.5;
+  q.fillStyle = 'rgba(95,227,168,0.12)'; q.fillRect(X(-250), y0, X(250) - X(-250), h);
+  // integer steps, so both edges reach z = 0 and z = 1 exactly
+  const Zs = Array.from({ length: 21 }, (_, i) => i / 20), Zr = [...Zs].reverse();
+  q.fillStyle = 'rgba(154,166,181,0.6)'; q.beginPath();
+  for (const z of Zs) q.lineTo(X(tz(z)), Z(z));
+  for (const z of Zr) q.lineTo(X(-tz(z)), Z(z));
+  q.closePath(); q.fill();
+  q.fillStyle = 'rgba(255,125,125,0.55)';
+  for (const [sg, dm] of [[1, Cq.damage[0]], [-1, Cq.damage[1]]]) { q.beginPath(); for (const z of Zs) q.lineTo(X(sg * tz(z)), Z(z)); for (const z of Zr) q.lineTo(X(sg * (tz(z) - 2 * dm)), Z(z)); q.closePath(); q.fill(); }
+  if (Cq.contam > 0.3) { q.fillStyle = 'rgba(111,214,255,0.7)'; for (const sg of [1, -1]) q.fillRect(sg > 0 ? X(Cq.t) : X(-Cq.t) - Math.max(1, (Cq.contam / tMax) * w), y0, Math.max(1, (Cq.contam / tMax) * w), h); }
+  if (Cq.gisLeft > 0.02) { q.fillStyle = 'rgba(240,226,190,0.8)'; q.fillRect(X(-Cq.t), y0 - Math.min(14 * d, Cq.gisLeft * 10 * d), X(Cq.t) - X(-Cq.t), Math.min(14 * d, Cq.gisLeft * 10 * d)); }
+  label(q, 'thickness through the lamella (red: damage, blue: contamination)', x0, 9 * d, d, { color: C.muted, size: 8.5 });
+  label(q, '150–250 nm', X(250) + 3 * d, y0 + h - 8 * d, d, { color: C.green, size: 8 });
+  label(q, `${q0.verdict} · t/λ ${q0.t_lambda} · ${q0.intact} nm undamaged · ${q0.time_min} min`, x0, s.H - 12 * d, d, { color: C.text, size: 8.5 });
 }
 
 // ------------------------------------------------------------------ slice & view

@@ -100,6 +100,15 @@ export const MAT = {
   // Li-ion cathode: NMC811 secondary particles, PVDF + carbon-black binder
   NMC: { name: 'NMC811 cathode', Z: 20, A: 24.4, rho: 4.75, dmax: 2.4, Emax: 0.45, cond: false, E2: 3.2, comp: { Ni: 0.2, Mn: 0.025, Co: 0.025, O: 0.5, Li: 0.25 }, color: '#9bb7e0', Yv: 0.16, Us: 5.5, Ed: 25, kind: 'oxide' },
   Binder: { name: 'Binder (PVDF + carbon black)', Z: 6.5, A: 12.8, rho: 1.8, dmax: 1.6, Emax: 0.35, cond: true, comp: { C: 0.6, F: 0.33, H: 0.07 }, color: '#5c6370', Yv: 0.45, Us: 4, Ed: 20, kind: 'polymer' },
+  // cryo: vitreous (amorphous) ice and frozen-hydrated cells, which mill several times faster than silicon; gold grid
+  // bars; the organometallic Pt that the cold GIS condenses as a protective layer (insulating, slow to mill)
+  Ice: { name: 'Vitreous ice', Z: 7.2, A: 13, rho: 0.93, dmax: 0.9, Emax: 0.3, cond: false, E2: 1.6, comp: { O: 0.333, H: 0.667 }, color: '#9fd4ff', Yv: 1.2, Us: 0.5, Ed: 10, kind: 'ice' },
+  Cyto: { name: 'Vitrified cytoplasm', Z: 6.9, A: 12.4, rho: 1.06, dmax: 1.2, Emax: 0.3, cond: false, E2: 1.5, comp: { O: 0.27, C: 0.1, N: 0.025, H: 0.6, P: 0.003, S: 0.002 }, color: '#7fa7c9', Yv: 0.95, Us: 1.2, Ed: 12, kind: 'bio' },
+  Nuc: { name: 'Nucleus (chromatin)', Z: 7.4, A: 13.2, rho: 1.12, dmax: 1.35, Emax: 0.3, cond: false, E2: 1.5, comp: { O: 0.26, C: 0.12, N: 0.035, H: 0.57, P: 0.012, S: 0.002 }, color: '#b48cff', Yv: 0.9, Us: 1.2, Ed: 12, kind: 'bio' },
+  Lipid: { name: 'Lipid droplet', Z: 5.6, A: 10.2, rho: 0.92, dmax: 1.6, Emax: 0.3, cond: false, E2: 1.4, comp: { C: 0.33, H: 0.64, O: 0.03 }, color: '#ffd27f', Yv: 1.0, Us: 1.0, Ed: 12, kind: 'bio' },
+  Wall: { name: 'Cell wall (glucan)', Z: 6.8, A: 12.6, rho: 1.3, dmax: 1.4, Emax: 0.32, cond: false, E2: 1.6, comp: { C: 0.25, O: 0.2, H: 0.55 }, color: '#9fe3b0', Yv: 0.7, Us: 1.5, Ed: 14, kind: 'bio' },
+  Au: { name: 'Gold', Z: 79, A: 196.97, rho: 19.3, dmax: 1.6, Emax: 0.75, cond: true, comp: { Au: 1 }, cryst: 'fcc', a: 4.078, color: '#ffcf5a', Yv: 1.5, Us: 3.8, Ed: 36, kind: 'metal' },
+  PtCryo: { name: 'Organometallic Pt (cold GIS)', Z: 9, A: 16, rho: 1.6, dmax: 1.5, Emax: 0.32, cond: false, E2: 1.2, comp: { C: 0.45, H: 0.5, Pt: 0.05 }, color: '#e9dcc0', Yv: 0.12, Us: 3, Ed: 20, kind: 'polymer' },
 };
 export const MKEYS = Object.keys(MAT);
 export const J = (Z) => (9.76 * Z + 58.5 * Math.pow(Z, -0.19)) * 1e-3; // mean ionisation potential, keV
@@ -153,9 +162,13 @@ export const XLINES = [
   { el: 'Sn', line: 'Lβ', E: 3.663, Ec: 3.929, w: 0.55, y: 0.9 },
   { el: 'Xe', line: 'Lα', E: 4.11, Ec: 4.782, w: 1, y: 0.9 },
   { el: 'Pt', line: 'Mα', E: 2.048, Ec: 2.122, w: 1, y: 0.7 },
+  { el: 'P', line: 'Kα', E: 2.013, Ec: 2.145, w: 1, y: 1.0 },
+  { el: 'S', line: 'Kα', E: 2.307, Ec: 2.472, w: 1, y: 1.0 },
+  { el: 'Au', line: 'Mα', E: 2.123, Ec: 2.206, w: 1, y: 0.7 },
+  { el: 'Au', line: 'Lα', E: 9.713, Ec: 11.919, w: 1, y: 0.9 },
   { el: 'Pt', line: 'Lα', E: 9.442, Ec: 11.564, w: 1, y: 0.9 },
 ];
-export const EL_COLOR = { C: '#9aa4b2', N: '#8fd3ff', O: '#ff7d7d', F: '#b3ff8a', Al: '#ffc15e', Si: '#5cb4ff', Ar: '#7fa8ff', Ni: '#5fe3a8', Mn: '#e88cff', Co: '#4dd6d6', Cu: '#ff9a4d', Ga: '#ffd23f', W: '#c99bff', Sn: '#e2e8f0', Xe: '#b48cff', Pt: '#f0e36b', Li: '#ffffff', H: '#ffffff' };
+export const EL_COLOR = { C: '#9aa4b2', N: '#8fd3ff', O: '#ff7d7d', F: '#b3ff8a', Al: '#ffc15e', Si: '#5cb4ff', Ar: '#7fa8ff', Ni: '#5fe3a8', Mn: '#e88cff', Co: '#4dd6d6', Cu: '#ff9a4d', Ga: '#ffd23f', W: '#c99bff', Sn: '#e2e8f0', Xe: '#b48cff', Pt: '#f0e36b', Li: '#ffffff', H: '#ffffff', P: '#ff9f6b', S: '#fff36b', Au: '#ffcf5a' };
 export const detEff = (E) => Math.exp(-Math.pow(0.35 / E, 2)) * Math.exp(-E / 60);
 export const edsFWHM = (E) => Math.sqrt(45.7 * 45.7 + 2.355 * 2.355 * 0.115 * 3.8 * E * 1000) / 1000;
 // Relative ionisation efficiency (Bethe-like) for overvoltage U
@@ -391,7 +404,7 @@ export const ETCH_GAS = {
 // chemistry of the beam itself: oxygen ions burn carbon and polymer away and slow metal milling (an oxide forms);
 // nitrogen forms nitrides on metals
 function beamChemistry(ionKey, m) {
-  if (ionKey === 'O') return m.kind === 'polymer' ? 4 : m.kind === 'carbon' ? 3.2 : m.kind === 'metal' ? 0.65 : 1;
+  if (ionKey === 'O') return m.kind === 'polymer' ? 4 : m.kind === 'carbon' ? 3.2 : m.kind === 'bio' ? 1.6 : m.kind === 'metal' ? 0.65 : 1;
   if (ionKey === 'N') return m.kind === 'metal' ? 0.85 : 1;
   return 1;
 }
@@ -427,7 +440,7 @@ export function sputter(ionKey, matKey, E_keV, theta = 0, gas = null) {
 }
 
 // Ion-induced secondary electrons (kinetic emission ∝ electronic stopping): metals bright, oxides dim.
-const ISE_KIND = { metal: 1.0, semi: 0.8, oxide: 0.42, carbon: 0.7, polymer: 0.38, vac: 0 };
+const ISE_KIND = { metal: 1.0, semi: 0.8, oxide: 0.42, carbon: 0.7, polymer: 0.38, ice: 0.3, bio: 0.36, vac: 0 };
 export function iseYield(ionKey, matKey, E_keV) {
   const m = MAT[matKey], I = ION[ionKey];
   if (!m.rho) return 0;
@@ -437,7 +450,7 @@ export function iseYield(ionKey, matKey, E_keV) {
 }
 // Secondary (sputtered) ions: oxygen at the surface enhances positive-ion emission by orders of magnitude, which is
 // why oxides look bright in SI images and why O⁺/O₂⁺ beams are used for SIMS.
-const SI_KIND = { metal: 0.12, semi: 0.2, oxide: 1.0, carbon: 0.08, polymer: 0.15, vac: 0 };
+const SI_KIND = { metal: 0.12, semi: 0.2, oxide: 1.0, carbon: 0.08, polymer: 0.15, ice: 0.6, bio: 0.3, vac: 0 };
 export function siYield(ionKey, matKey, E_keV) {
   const m = MAT[matKey];
   if (!m.rho) return 0;
@@ -770,6 +783,80 @@ function nmcVol(x, y, Z) {
   return b > 0.5 ? R('Binder') : VAC;
 }
 
+// --- cryo: yeast cells (S. cerevisiae, ~4–5 µm) plunge-frozen in vitreous ice on a 200-mesh gold grid with a holey
+// carbon film (2 µm holes, 4 µm pitch). The origin is the centre of a grid square, on a small clump of cells.
+const GRID = 125, BAR = 32, SQ0 = (GRID + BAR) / 2;
+export const onGridBar = (x, y) => { const X = (((x + SQ0) % GRID) + GRID) % GRID, Yb = (((y + SQ0) % GRID) + GRID) % GRID; return X < BAR || Yb < BAR; };
+const inHole = (x, y) => { const X = ((x % 4) + 4) % 4 - 2, Yh = ((y % 4) + 4) % 4 - 2; return X * X + Yh * Yh < 1; };
+const CLUMP = [[0, 0, 2.4], [-4.1, 1.3, 2.1], [3.9, -0.9, 2.2], [0.6, 3.9, 1.9]];
+// nearby cells (centre x, y, z, radius, vertical semi-axis, id)
+function cellsNear(x, y) {
+  const out = [];
+  for (const [cx, cy, r] of CLUMP) if (Math.abs(x - cx) < r + 7 && Math.abs(y - cy) < r + 7) out.push([cx, cy, r * 0.85, r, r * 0.85, (cx * 977 + cy * 131) | 0]);
+  const cell = 11, ix = Math.floor(x / cell), iy = Math.floor(y / cell);
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const gx = ix + i, gy = iy + j;
+    if ((Math.abs(gx) <= 1 && Math.abs(gy) <= 1) || hash(gx, gy, 801) > 0.42) continue;
+    const r = 1.7 + 0.9 * hash(gx, gy, 802), px = (gx + 0.2 + 0.6 * hash(gx, gy, 803)) * cell, py = (gy + 0.2 + 0.6 * hash(gx, gy, 804)) * cell;
+    if (onGridBar(px, py)) continue;
+    out.push([px, py, r * 0.85, r, r * 0.85, (gx * 92821) ^ (gy * 68917)]);
+  }
+  return out;
+}
+// inside one cell (u, v, w relative to its centre, in units of its radius r): wall, nucleus, vacuole, lipid droplets
+function cellInterior(u, v, w, r, id, d) {
+  if ((1 - d) * r < 0.11) return 'Wall';
+  const n = (a, b, c, rr) => (u - a) ** 2 + (v - b) ** 2 + (w - c) ** 2 < rr * rr;
+  const h1 = hash(id, 1, 805) - 0.5, h2 = hash(id, 2, 805) - 0.5;
+  if (n(0.22 + 0.2 * h1, -0.12 + 0.2 * h2, 0.05, 0.4)) return 'Nuc';
+  if (n(-0.36 - 0.1 * h2, 0.24 + 0.1 * h1, -0.08, 0.3)) return 'Ice';
+  for (let k = 0; k < 4; k++) {
+    const a = hash(id, 10 + k, 806) * 6.283, rad = 0.55 + 0.2 * hash(id, 20 + k, 806);
+    if (n(rad * Math.cos(a), rad * Math.sin(a), 0.3 * (hash(id, 30 + k, 806) - 0.5), 0.16)) return 'Lipid';
+  }
+  return 'Cyto';
+}
+function cellTop(x, y) {
+  let h = 0.22 + 0.04 * vnoise(x * 0.5, y * 0.5, 13), mound = 0;
+  for (const [cx, cy, cz, r, rz] of cellsNear(x, y)) {
+    const d2 = ((x - cx) ** 2 + (y - cy) ** 2) / (r * r);
+    if (d2 < 1) h = Math.max(h, cz + rz * Math.sqrt(1 - d2) + 0.3);
+    // the ice meniscus that fills in around and between the cells of a clump
+    mound = Math.max(mound, (cz + rz + 0.1) * Math.exp(-((d2 / 2.2) ** 2)));
+  }
+  h = Math.max(h, mound);
+  // frost: hexagonal ice crystals that fell on the grid during transfer
+  const fc = 7, fx = Math.floor(x / fc), fy = Math.floor(y / fc);
+  if (hash(fx, fy, 811) < 0.12) {
+    const r = 0.2 + 0.45 * hash(fx, fy, 812), px = (fx + 0.5) * fc, py = (fy + 0.5) * fc, d = Math.max(Math.abs(x - px), Math.abs(y - py) * 1.15, Math.abs(x - px) * 0.5 + Math.abs(y - py) * 0.87);
+    if (d < r) h = Math.max(h, h + r * 0.8);
+  }
+  return h;
+}
+function cellVol(x, y, Z) {
+  const bar = onGridBar(x, y);
+  if (Z < -0.02) return bar && Z > -20 ? R('Au', { grain: 3, ori: grainOri(3, 9) }) : VAC;
+  if (Z < 0) return inHole(x, y) && !bar ? R('Ice') : R('C');
+  for (const [cx, cy, cz, r, rz, id] of cellsNear(x, y)) {
+    const u = (x - cx) / r, v = (y - cy) / r, w = (Z - cz) / rz, d2 = u * u + v * v + w * w;
+    if (d2 < 1) return R(cellInterior(u, v, w, r, id, Math.sqrt(d2)));
+  }
+  return R('Ice');
+}
+// --- cryo: high-pressure-frozen yeast paste in a planchette, trimmed flat: densely packed cells in vitreous ice
+function hpfVol(x, y, Z) {
+  const cell = 4.6, cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(Z / cell);
+  for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const gx = cx + i, gy = cy + j, gz = cz + k;
+    if (hash3(gx, gy, gz, 821) > 0.9) continue;
+    const r = 1.95 + 0.45 * hash3(gx, gy, gz, 822);
+    const px = (gx + 0.5 + 0.3 * (hash3(gx, gy, gz, 823) - 0.5)) * cell, py = (gy + 0.5 + 0.3 * (hash3(gx, gy, gz, 824) - 0.5)) * cell, pz = (gz + 0.5 + 0.3 * (hash3(gx, gy, gz, 825) - 0.5)) * cell;
+    const u = (x - px) / r, v = (y - py) / r, w = (Z - pz) / r, d2 = u * u + v * v + w * w;
+    if (d2 < 1) return R(cellInterior(u, v, w, r, (gx * 92821) ^ (gy * 68917) ^ (gz * 39119), Math.sqrt(d2)));
+  }
+  return R('Ice');
+}
+
 export const SPECIMENS = {
   chip: {
     id: 'chip', name: 'Microchip (bond pads over copper interconnects)', short: 'Chip', fov: 40, fovMin: 0.3, fovMax: 600, phases: ['Al', 'Cu', 'Si'],
@@ -802,6 +889,16 @@ export const SPECIMENS = {
       if (y > 4.3) return R('PtC');
       return chipVol(x, 0.05, y - 4.3);
     },
+  },
+  cell: {
+    id: 'cell', name: 'Yeast cells, plunge-frozen on a grid (cryo)', short: 'Frozen cells', fov: 60, fovMin: 0.5, fovMax: 1500, phases: [], cryo: true,
+    note: 'Yeast cells frozen so fast (≈10⁵ K/s in liquid ethane) that the water around and inside them turned to glass: vitreous ice, no crystals. They sit on a holey carbon film on a gold grid, kept below −170 °C on the cryo stage. Uncoated ice charges above ~1.6 kV; at the centre is a clump of cells for a cryo lamella.',
+    top: cellTop, vol: cellVol,
+  },
+  hpf: {
+    id: 'hpf', name: 'Yeast paste, high-pressure frozen (cryo)', short: 'HPF yeast', fov: 30, fovMin: 0.5, fovMax: 400, phases: [], cryo: true,
+    note: 'A 100 µm thick paste of yeast cells, frozen at 2100 bar so that even this thickness vitrifies, then trimmed flat. Too thick for plunge freezing: the target of cryo slice & view and of cryo lift-out. Nuclei, vacuoles, lipid droplets and cell walls in vitreous ice.',
+    top(x, y) { return 0.003 * vnoise(x * 2, y * 2, 21); }, vol: hpfVol,
   },
 };
 export const SPEC_KEYS = Object.keys(SPECIMENS);

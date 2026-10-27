@@ -353,5 +353,277 @@
   "charge_nC": 483.265,
   "time_s": 604.1,
   "status": "done"
+ },
+ "cryo": {
+  "t0": 5200,
+  "length_um": 25,
+  "gis_um": 0.9,
+  "coat_nm": 7.5,
+  "prep_min": 9.1,
+  "passes": [
+   {
+    "I": 800,
+    "T": 2500,
+    "t": 2499,
+    "damage": [
+     42.1,
+     42.2
+    ],
+    "devit": 0,
+    "min": 9.5
+   },
+   {
+    "I": 300,
+    "T": 800,
+    "t": 801,
+    "damage": [
+     42.6,
+     41.7
+    ],
+    "devit": 0,
+    "min": 15.4
+   },
+   {
+    "I": 100,
+    "T": 400,
+    "t": 403,
+    "damage": [
+     41.4,
+     42.9
+    ],
+    "devit": 0,
+    "min": 11
+   },
+   {
+    "I": 25,
+    "T": 200,
+    "t": 200,
+    "damage": [
+     42.1,
+     42.2
+    ],
+    "devit": 0,
+    "min": 21.7
+   }
+  ],
+  "final": {
+   "t": 200,
+   "t_eff": 214,
+   "t_bottom": 256,
+   "t_lambda": 0.61,
+   "damage": [
+    42.1,
+    42.2
+   ],
+   "intact": 115,
+   "damage_frac": 0.42,
+   "devit_pct": 0,
+   "contam_nm": 2.6,
+   "ga": 2.4,
+   "curtain": 0.22,
+   "angle": 12,
+   "length_um": 25,
+   "bent": false,
+   "lost": false,
+   "hole": false,
+   "coated": true,
+   "time_min": 67.9,
+   "verdict": "Ready for cryo-ET"
+  },
+  "species": {
+   "Ga": {
+    "t": 201,
+    "t_eff": 215,
+    "t_bottom": 258,
+    "t_lambda": 0.62,
+    "damage": [
+     41.8,
+     42.6
+    ],
+    "intact": 117,
+    "damage_frac": 0.42,
+    "devit_pct": 0,
+    "contam_nm": 2.6,
+    "ga": 2.4,
+    "curtain": 0.22,
+    "angle": 12,
+    "length_um": 25,
+    "bent": false,
+    "lost": false,
+    "hole": false,
+    "coated": true,
+    "time_min": 67.6,
+    "verdict": "Ready for cryo-ET"
+   },
+   "Ar": {
+    "t": 201,
+    "t_eff": 217,
+    "t_bottom": 245,
+    "t_lambda": 0.62,
+    "damage": [
+     31.2,
+     30.4
+    ],
+    "intact": 139,
+    "damage_frac": 0.31,
+    "devit_pct": 0,
+    "contam_nm": 3.5,
+    "ga": 0,
+    "curtain": 0.22,
+    "angle": 12,
+    "length_um": 25,
+    "bent": false,
+    "lost": false,
+    "hole": false,
+    "coated": true,
+    "time_min": 92.5,
+    "verdict": "Ready for cryo-ET"
+   },
+   "Xe": {
+    "t": 203,
+    "t_eff": 215,
+    "t_bottom": 247,
+    "t_lambda": 0.61,
+    "damage": [
+     17.9,
+     18.8
+    ],
+    "intact": 166,
+    "damage_frac": 0.18,
+    "devit_pct": 0,
+    "contam_nm": 1.6,
+    "ga": 0,
+    "curtain": 0.22,
+    "angle": 12,
+    "length_um": 25,
+    "bent": false,
+    "lost": false,
+    "hole": false,
+    "coated": true,
+    "time_min": 50,
+    "verdict": "Ready for cryo-ET"
+   }
+  },
+  "damage": {
+   "Ga": {
+    "5": 13.4,
+    "8": 17.4,
+    "16": 27.1,
+    "30": 42.2
+   },
+   "Ar": {
+    "5": 7.5,
+    "8": 10.5,
+    "16": 18.4,
+    "30": 30.8
+   },
+   "Xe": {
+    "5": 7.1,
+    "8": 9.2,
+    "16": 12.7,
+    "30": 18.3
+   }
+  },
+  "rangeIce": {
+   "Ga": 51.6,
+   "Ar": 70.2,
+   "Xe": 48.9
+  },
+  "yv": {
+   "Ice": 1.16,
+   "Cyto": 0.9,
+   "Lipid": 0.95,
+   "PtCryo": 0.11,
+   "Si": 0.25
+  },
+  "rushed": {
+   "t": 253,
+   "t_eff": 257,
+   "t_bottom": 310,
+   "t_lambda": 0.73,
+   "damage": [
+    41.1,
+    43.3
+   ],
+   "intact": 169,
+   "damage_frac": 0.33,
+   "devit_pct": 64,
+   "contam_nm": 2,
+   "ga": 0.6,
+   "curtain": 0.12,
+   "angle": 12,
+   "length_um": 25,
+   "bent": false,
+   "lost": false,
+   "hole": false,
+   "coated": false,
+   "time_min": 25.8,
+   "verdict": "Devitrified"
+  },
+  "norelief": {
+   "t": 200,
+   "t_eff": 205,
+   "t_bottom": 257,
+   "t_lambda": 0.59,
+   "damage": [
+    42.1,
+    42.3
+   ],
+   "intact": 116,
+   "damage_frac": 0.42,
+   "devit_pct": 0,
+   "contam_nm": 2.6,
+   "ga": 2.4,
+   "curtain": 0.22,
+   "angle": 12,
+   "length_um": 25,
+   "bent": true,
+   "lost": false,
+   "hole": false,
+   "coated": false,
+   "time_min": 66.7,
+   "verdict": "Usable"
+  },
+  "noshield": {
+   "t": 201,
+   "t_eff": 288,
+   "t_bottom": 257,
+   "t_lambda": 0.82,
+   "damage": [
+    42.5,
+    41.9
+   ],
+   "intact": 116,
+   "damage_frac": 0.42,
+   "devit_pct": 0,
+   "contam_nm": 43.6,
+   "ga": 2.4,
+   "curtain": 0.22,
+   "angle": 12,
+   "length_um": 25,
+   "bent": false,
+   "lost": false,
+   "hole": false,
+   "coated": false,
+   "time_min": 66.4,
+   "verdict": "Usable"
+  },
+  "sv": {
+   "measured": [
+    0.6707666015625,
+    0.258857421875,
+    0.0703759765625
+   ],
+   "truth": [
+    0.6667626953125,
+    0.305712890625,
+    0.0275244140625
+   ],
+   "names": [
+    "ice",
+    "cytoplasm",
+    "lipid & nuclei"
+   ]
+  }
  }
 }

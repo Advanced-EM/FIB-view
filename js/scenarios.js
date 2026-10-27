@@ -4,7 +4,7 @@
 import * as P from './physics.js';
 import { Recorder } from './telemetry.js';
 import { SHARE } from './config.js';
-import { newLamella, lamQuality, lamThickness } from './mill.js';
+import { newLamella, lamQuality, lamThickness, newCryoLamella, cryoPrep, cryoQuality } from './mill.js';
 
 const esc = (t) => String(t).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch {} return null; };
@@ -117,6 +117,37 @@ export const SCENARIOS = {
       return { score, t_top_nm: q.t_top, t_bottom_nm: q.t_bottom, crystalline_nm: q.crystalline, amorph_nm: Math.max(...q.amorph), ga_pct: q.ga, bent: q.bent, hole: q.hole, time_min: q.time_min, success: score >= 60, verdict: q.hole ? 'Holed ✗' : q.bent ? 'Bent' : score >= 85 ? 'TEM-ready ✓' : score >= 60 ? 'Usable ✓' : 'Not quite' };
     },
     explain: (m) => `The lamella ended ${m.t_top_nm} nm thick at the top of the window and ${m.t_bottom_nm} nm three micrometres down (the wedge from the sidewall taper), with ${m.amorph_nm} nm of amorphous damage on each face, leaving ${m.crystalline_nm} nm of good crystal.${m.bent ? ' It bent: too much current for its thickness.' : ''}${m.hole ? ' It was holed.' : ''} The usual recipe steps the current down with the thickness (e.g. 0.8 nA to 500 nm, 0.3 nA to 250 nm, 80 pA to 120 nm), uses ±1–2° over-tilt to cancel the taper, and finishes with 5 kV and 2 kV polishing.`,
+  },
+  'cryo-lamella': {
+    title: 'Cryo lamella: 200 nm for cryo-ET',
+    short: 'A frozen yeast cell on the grid, coated and ready to mill at 12°. Mill it to ~200 nm for cryo-electron tomography: keep the ice vitreous and clean, and do not lose it.',
+    brief: 'The site is prepared (sputter coat, cold GIS Pt, milling angle 12°, relief cuts). Mill both boxes with <b>Mill both boxes</b>, choosing the <b>current</b> and the <b>target thickness</b> of each pass (Controls → Cryo lamella), down to <b>~200 nm</b> (150–250 counts). The true thickness is hidden: judge it from the SEM view from above (thin ice brightens at low kV). Too much current for the thickness warms the slab and the ice crystallises; slow work lets contamination grow; a lamella left too thick is useless for cryo-ET and one too thin has little undamaged volume. Finish with the <b>Final sputter coat</b> and press <b>I\'m done</b>.',
+    cues: ['Lamella brightened in the SEM', 'Lowered the current as it thinned', 'Worked fast at the end', 'Trusted the target thickness', 'Coated at the end', 'Guessed'],
+    hideTruth: true,
+    setup(api, rng) {
+      const { S, sim } = api;
+      api.setSpec('cell');
+      api.setMode('cryo');
+      Object.assign(S, { ion: 'Ga', ikV: 30, cryoAngle: 12, cryoRelief: true, cryoT: -190, anticontam: true, kV: 3, current: 25, clarity: 'edu' });
+      const C = newCryoLamella(rng);
+      C.t = C.t0 = Math.round(4200 + rng() * 2400);
+      for (const id of ['sputter', 'gis', 'angle', 'relief']) cryoPrep(C, id, { sputter: 15, gis: 20, angle: 12, relief: true, T: -190 });
+      C.step = 4; sim.cryo = C; S.coated = true; S.tilt = 19;
+      S.cryoI = P.nearestCurrent('Ga', 1000); S.cryoTarget = 2500;
+      S.mis = { hideTruth: true };
+      return { hidden: { t0_nm: C.t0, offset: r1(C.offset), drift: r1(C.drift) }, target: { t_nm: 200, window: [150, 250] } };
+    },
+    metrics(api) {
+      const C = api.sim.cryo, q = cryoQuality(C);
+      let s = C.step < 5 ? 0 : 100 * Math.exp(-(((q.t_eff - 200) / 80) ** 2));
+      s *= Math.exp(-C.devit / 0.1) * Math.exp(-Math.max(0, q.damage_frac - 0.5) * 2) * Math.exp(-Math.max(0, q.time_min - 100) / 150);
+      if (C.bent) s *= 0.5;
+      if (!C.coatFinal) s *= 0.85;
+      if (C.lost || C.hole) s = 0;
+      const score = Math.round(s);
+      return { score, t_nm: q.t, t_eff_nm: q.t_eff, t_lambda: q.t_lambda, damage_nm: Math.max(...q.damage), intact_nm: q.intact, devit_pct: q.devit_pct, contam_nm: q.contam_nm, bent: q.bent, lost: q.lost, coated: q.coated, time_min: q.time_min, success: score >= 60, verdict: C.lost ? 'Lost ✗' : C.devit > 0.15 ? 'Devitrified ✗' : score >= 85 ? 'Ready for cryo-ET ✓' : score >= 60 ? 'Usable ✓' : 'Not quite' };
+    },
+    explain: (m) => `The lamella ended ${m.t_nm} nm thick (${m.t_eff_nm} nm with contamination and coating; t/λ ${m.t_lambda}, where ~0.4–0.7 is good for tomography), with ${m.damage_nm} nm of ion damage on each face, leaving ${m.intact_nm} nm undamaged. ${m.devit_pct > 0 ? `${m.devit_pct} % of the ice crystallised: too much beam power for the thickness. ` : 'The ice stayed vitreous. '}${m.bent ? 'It bent. ' : ''}${m.lost ? 'It was lost. ' : ''}${m.coated ? '' : 'It was not coated at the end, so it will charge in the TEM. '}A typical recipe: 1 nA to 2.5 µm, 300 pA to 800 nm, 100 pA to 400 nm, then 30–50 pA to 200 nm, coat, and unload promptly.`,
   },
 };
 

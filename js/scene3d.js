@@ -186,6 +186,23 @@ export class Scene3D {
     const foil = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.12), new THREE.MeshStandardMaterial({ color: 0xc88a5a, metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
     foil.rotation.x = -Math.PI / 2; this.lamella.add(foil);
     this.lamella.position.y = -0.02; this.tiltGroup.add(this.lamella);
+    // cryo: a copper shuttle holding the grid in a gold clip ring, cooled through copper braids from a nitrogen-gas
+    // heat exchanger; an anticontaminator (a colder shield) hangs just above the specimen
+    this.cryo = new THREE.Group();
+    const frosty = new THREE.MeshStandardMaterial({ color: 0xc58a5a, metalness: 0.8, roughness: 0.45, emissive: 0x1a4a66, emissiveIntensity: 0.25 });
+    const shuttle = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.2, 0.95), frosty); shuttle.position.y = -0.14; this.cryo.add(shuttle);
+    const clip = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 10, 48), new THREE.MeshStandardMaterial({ color: 0xffcf5a, metalness: 1, roughness: 0.3 })); clip.rotation.x = Math.PI / 2; clip.position.y = -0.03; this.cryo.add(clip);
+    this.tiltGroup.add(this.cryo);
+    this.braids = new THREE.Group();
+    const braidMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.9, roughness: 0.6 });
+    for (const dz of [-0.25, 0.25]) {
+      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0.5, Y.floor + 1.3, dz), new THREE.Vector3(1.6, Y.floor + 0.7, dz * 1.6), new THREE.Vector3(2.8, Y.floor + 1.5, -1.2 + dz), new THREE.Vector3(3.6, Y.floor + 2.1, -1.6 + dz)]);
+      this.braids.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.05, 8, false), braidMat));
+    }
+    const hx = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 20), M.iron); hx.rotation.z = Math.PI / 2; hx.position.set(3.95, Y.floor + 2.1, -1.6); this.braids.add(hx);
+    this.stage.add(this.braids);
+    this.anticon = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.95, 40), new THREE.MeshStandardMaterial({ color: 0x9fc6e0, metalness: 0.8, roughness: 0.35, emissive: 0x2a6f9a, emissiveIntensity: 0.35, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+    this.anticon.rotation.x = -Math.PI / 2; this.scene.add(this.anticon);
     // ETD with Faraday cage
     this.etd = new THREE.Group();
     const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.8, 24), new THREE.MeshBasicMaterial({ color: 0x5a7080, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide })); pipe.rotation.x = Math.PI / 2; pipe.position.z = -0.95; this.etd.add(pipe);
@@ -326,14 +343,14 @@ export class Scene3D {
     this.ionBeam.mat.uniforms.uColor.value.copy(col);
     this.ionBeam.mat.uniforms.uOpacity.value = (S.clarity !== 'real' ? 0.6 : 0.45) * clamp(0.5 + 0.15 * Math.log10(S.icur), 0.4, 1.3);
     this.ionBeam.mat.uniforms.uTime.value = S.paused ? 0 : this.time * S.speed;
-    this.cdemMat.color.set(ionOn && ['fib', 'mill', 'gis', 'lam', 'sv'].includes(m) ? 0xffb45e : 0x3a2a14);
+    this.cdemMat.color.set(ionOn && ['fib', 'mill', 'gis', 'lam', 'cryo', 'sv'].includes(m) ? 0xffb45e : 0x3a2a14);
     this.cdem.lookAt(spot);
     // gas needle: in when a gas is used
-    const gasIn = m === 'gis' || (m === 'mill' && S.gas !== 'none') || (m === 'lam' && sim.mill.active?.kind === 'dep');
+    const gasIn = m === 'gis' || (m === 'mill' && S.gas !== 'none') || (m === 'lam' && sim.mill.active?.kind === 'dep') || (m === 'cryo' && sim.cryo.step === 1);
     A.gis = lerp(A.gis, gasIn ? 1 : 0, k);
     const gdir = new THREE.Vector3(0.75, 0.45, 0.5).normalize(), gtip = spot.clone().add(gdir.clone().multiplyScalar(lerp(3.2, 0.32, A.gis)));
     this.gis.position.copy(gtip); this.gis.lookAt(gtip.clone().add(gdir)); this.gis.rotateY(Math.PI);
-    this.gis.visible = A.gis > 0.02 || m === 'gis' || m === 'mill' || m === 'lam';
+    this.gis.visible = A.gis > 0.02 || m === 'gis' || m === 'mill' || m === 'lam' || m === 'cryo';
     this.gisTip.material.color.set(m === 'gis' ? 0xffd678 : S.gas === 'H2O' ? 0x9fdcff : 0xd0ffd0);
     this.gisTip.scale.setScalar(gasIn ? 0.25 + 0.05 * Math.sin(this.time * 6) : 0.01);
     // manipulator: in during lift-out
@@ -431,7 +448,9 @@ export class Scene3D {
       ['Ion column', () => this.ionCol.localToWorld(new THREE.Vector3(0.6, 2.5 * ISC, 0)).toArray()],
       ['Gas injection system', () => this.gis.localToWorld(new THREE.Vector3(0, 0.15, -1.6)).toArray(), null, ['mill', 'gis', 'lam']],
       ['Manipulator needle', () => this.manip.localToWorld(new THREE.Vector3(0, 0.1, -1.8)).toArray(), 'left', ['lam']],
-      ['Ion detector', () => this.cdem.localToWorld(new THREE.Vector3(0, 0.25, 0)).toArray(), null, ['fib', 'mill', 'gis', 'lam', 'sv']],
+      ['Ion detector', () => this.cdem.localToWorld(new THREE.Vector3(0, 0.25, 0)).toArray(), null, ['fib', 'mill', 'gis', 'lam', 'cryo', 'sv']],
+      ['Cryo stage & shuttle', () => [3.0, Y.floor + 1.9, -1.0], null, (S) => !!P.SPECIMENS[S.spec]?.cryo],
+      ['Anticontaminator', () => this.anticon.localToWorld(new THREE.Vector3(-0.9, 0, 0)).toArray(), 'left', (S) => !!P.SPECIMENS[S.spec]?.cryo && S.anticontam],
     ];
     this.labels = L.map(([text, pos, side, modes]) => {
       const el = document.createElement('div');
@@ -466,7 +485,11 @@ export class Scene3D {
     const postTop = A.sy - 0.4, postBot = Y.floor + 0.35;
     this.post.scale.y = Math.max(0.05, postTop - postBot); this.post.position.y = (postTop + postBot) / 2;
     const onGrid = tkdOn || (m === 'lam' && sim.lam.step >= 6);
-    this.lamella.visible = onGrid; this.stub.visible = !onGrid; this.specDisk.visible = !onGrid;
+    const cryo = !!P.SPECIMENS[S.spec]?.cryo;
+    this.lamella.visible = onGrid; this.stub.visible = !onGrid && !cryo; this.specDisk.visible = !onGrid;
+    this.cryo.visible = cryo && !onGrid; this.braids.visible = cryo;
+    this.anticon.visible = cryo && S.anticontam; this.anticon.position.set(0, A.sy + 0.42, 0.25);
+    this.cryo.children[0].material.emissiveIntensity = cryo ? (S.cryoT > -137 ? 0.05 : 0.25 + 0.05 * Math.sin(this.time * 2)) : 0;
     // detectors in / out
     A.bse = lerp(A.bse, m === 'bse' ? 1 : 0, k);
     this.bse.position.set((1 - A.bse) * 2.6, Y.tip - 0.06, 0);
@@ -489,7 +512,7 @@ export class Scene3D {
     this.scanOff = [(((rs * 256) % 1) - 0.5) * sc * 2 * 0 + (rs - 0.5) * sc, (row - 0.5) * sc * Math.cos(A.tilt)];
     if (['se', 'inlens', 'bse'].includes(m)) this.scanOff = [(((sim.raster * 256) % 1) - 0.5) * sc, (sim.raster - 0.5) * sc];
     if (m === 'fib') this.scanOff = [(((sim.iraster * 256) % 1) - 0.5) * sc, (sim.iraster - 0.5) * sc * Math.cos(A.tilt)];
-    if (['mill', 'gis', 'lam', 'sv'].includes(m)) this.scanOff = [(Math.sin(this.time * 7.3) * 0.5) * 0.06, (Math.sin(this.time * 1.1) * 0.5) * 0.04];
+    if (['mill', 'gis', 'lam', 'cryo', 'sv'].includes(m)) this.scanOff = [(Math.sin(this.time * 7.3) * 0.5) * 0.06, (Math.sin(this.time * 1.1) * 0.5) * 0.04];
     const spot = this.spot();
     // beam
     const apS = clamp(S.aperture / 30, 0.4, 2.2), pivotY = Y.scan - 0.15;
@@ -510,7 +533,7 @@ export class Scene3D {
     this.inlensMat.emissiveIntensity = m === 'inlens' ? 0.5 + 0.2 * Math.sin(this.time * 7) : 0;
     this.edsWin.color.set(m === 'eds' ? 0xffb45e : 0x3a2a14);
     this.chamberGlass.visible = S.showGlass;
-    this.specDisk.material.color.setScalar(['se', 'inlens', 'bse', 'fib', 'mill', 'gis', 'lam'].includes(m) ? 1.1 : 0.55);
+    this.specDisk.material.color.setScalar(['se', 'inlens', 'bse', 'fib', 'mill', 'gis', 'lam', 'cryo'].includes(m) ? 1.1 : 0.55);
     // ETD and EDS aim at the specimen
     this.etd.lookAt(spot); this.eds.position.set(-1.7, A.sy + 1.05, -1.9); this.eds.lookAt(spot);
     if (this.ebsd.visible) this.ebsd.lookAt(new THREE.Vector3(0, A.sy - 0.25, 5));
@@ -573,7 +596,7 @@ export class Scene3D {
   updateLabels(S) {
     const v = new THREE.Vector3();
     for (const L of this.labels) {
-      const on = S.showLabels && (!L.modes || L.modes.includes(S.mode));
+      const on = S.showLabels && (!L.modes || (typeof L.modes === 'function' ? L.modes(S) : L.modes.includes(S.mode)));
       if (!on) { L.el.style.opacity = 0; L.el.classList.add('off'); continue; }
       v.fromArray(L.pos()).project(this.camera);
       if (v.z > 1) { L.el.style.opacity = 0; L.el.classList.add('off'); continue; }

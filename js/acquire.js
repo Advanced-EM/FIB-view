@@ -66,6 +66,7 @@ function summary(S, sim) {
   if (m === 'fib') return `${i}, ${S.fibDet === 'si' ? 'secondary ions' : 'ion-induced SE'}, dwell ${S.idwell} µs`;
   if (m === 'mill' || m === 'gis') return `${i}, ${sim.mill.patterns.filter((p) => p.kind !== 'img').length} patterns`;
   if (m === 'lam') return `${i}, lamella step ${sim.lam.step + 1}`;
+  if (m === 'cryo') return `${i}, cryo lamella step ${Math.min(8, sim.cryo.step + 1)}`;
   if (m === 'ebsd' || m === 'tkd') return `${e}, ${sim.map ? `${sim.map.done} points, ${sim.map.ok} indexed` : 'mapping'}`;
   if (m === 'eds') return `${e}, ${sim.acc ? Math.round(sim.acc.total).toLocaleString() : 0} X-rays`;
   if (m === 'sv') return `${sim.sv?.k ?? 0} slices of ${S.svSlice} nm, ${S.svDet.toUpperCase()} at ${S.kV} kV`;

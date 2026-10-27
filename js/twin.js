@@ -7,7 +7,7 @@ import * as OPS from './ops.js';
 import { ScriptCore } from './scripting.js';
 import { describe } from './voice.js';
 import { analyze } from './analyze.js';
-import { newLamella } from './mill.js';
+import { newLamella, newCryoLamella } from './mill.js';
 
 export function createTwin({ name = 'headless' } = {}) {
   const S = defaultState(), sim = new Sim(S);
@@ -19,7 +19,7 @@ export function createTwin({ name = 'headless' } = {}) {
   const scenarioApi = {
     S, sim,
     setSpec: (v) => OPS.specState(S, sim, v), setMode: (m) => OPS.modeState(S, sim, m, S.mode),
-    resetMill: () => { sim.mill.reset(); sim.lam = newLamella(); },
+    resetMill: () => { sim.mill.reset(); sim.lam = newLamella(); sim.cryo = newCryoLamella(); },
     restoreState: (st) => { const m = st.mode; Object.assign(S, structuredClone(st)); S.mode = ''; OPS.modeState(S, sim, m, ''); sim.invalidate('all'); },
   };
   const core = new ScriptCore({ name, S, sim, run, busy: () => null, scenarioApi });

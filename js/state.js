@@ -15,6 +15,8 @@ export function defaultState() {
     svSlice: 100, svN: 60, svDet: 'bse', svView: 'xy', svZ: 0.5, svX: 0.5, svTiltCorr: true,
     // lamella
     lamI: 300, lamKV: 30, lamTarget: 300, lamOver: 1.5,
+    // cryo: stage temperature (°C), anticontaminator, and the cryo lamella's recipe
+    cryoT: -190, anticontam: true, cryoSputter: 15, cryoGIS: 20, cryoAngle: 12, cryoRelief: true, cryoI: 1000, cryoTarget: 2500,
     // view
     speed: 1, paused: false, showLabels: true, showElectrons: true, showGlass: true, autoRotate: false,
     mis: null,

@@ -13,10 +13,11 @@ everything the SEM exhibit does, plus a focused ion beam that images, mills, dep
   their gas bottles), an aperture strip, gas-injection needles, a lift-out manipulator, the ion detector, and all
   the SEM detectors (ETD, in-lens, 4-quadrant BSE, EDS, EBSD, TKD). Ions travel visibly slower than electrons, and
   sputtered atoms fly off the spot. Click any label for an instrument-physics card.
-- **Twelve modes:**
+- **Thirteen modes:**
   - *Electron beam:* SE · ETD, in-lens, BSE (selectable quadrants), EBSD and TKD with live Hough indexing, EDS.
   - *Ion beam:* **ion image** (ion-induced secondary electrons or secondary ions), **mill**, **deposit**.
-  - *Workflows:* **slice & view** (FIB-SEM tomography) and **lamella** (an eight-step TEM lift-out).
+  - *Workflows:* **slice & view** (FIB-SEM tomography), **lamella** (an eight-step TEM lift-out) and **cryo lamella**
+    (on-grid milling of frozen cells for cryo-electron tomography).
   - *Physics:* Monte Carlo of **electrons** (interaction volume) or **ions** (collision cascades).
 - **Ion species:** Ga⁺ (2.5 nm probes, implants and amorphises), Xe⁺ (fast bulk milling, 1.5 pA–2.5 µA),
   Ar⁺ (gentle polishing), N⁺ and O⁺ (light; oxygen burns carbon and polymers several times faster and boosts
@@ -46,9 +47,19 @@ everything the SEM exhibit does, plus a focused ion beam that images, mills, dep
   currents you choose (with over-tilt), and 5/2 kV polishing. The true thickness wedge, amorphous damage, Ga
   content, bending and holes are tracked; a 5 kV SEM view of the face shows the thickness the way an operator sees
   it. Send the finished lamella to TKD.
+- **Cryo-FIB:** a cryo stage (−196 to −100 °C) with a 45° pre-tilted shuttle, copper cooling braids and an
+  anticontaminator, and two frozen-hydrated specimens: **yeast cells plunge-frozen in vitreous ice** on a holey-carbon
+  gold grid, and a **high-pressure-frozen yeast paste** for cryo slice & view. Ice and biological matter mill ~4× faster
+  than silicon and charge above ~1.6 kV until sputter coated; the organometallic Pt the cold GIS condenses mills ~10×
+  slower than ice. The **cryo lamella** workflow: sputter coat, cold GIS, milling angle (stage tilt − 7°), micro-expansion
+  joints, then milling passes you choose down to ~200 nm, and a final coat. The true slab is tracked: thickness and t/λ,
+  the damaged layer on each face (Ga⁺ ~45 nm, Ar⁺ ~30 nm, Xe⁺ ~20 nm, from the collision cascades in ice),
+  **devitrification** from beam heating or a warm stage, **ice contamination** growing in real time (×10 without the
+  anticontaminator), bending without relief cuts, and a cryo-ET verdict. The SEM view from above shows the organelles
+  the slab cuts through.
 - **EDS** now sees the implanted beam ions (Ga, Xe, Ar) in milled areas.
 - **Experiments:** cross-section a chip, gallium vs xenon vs oxygen on a battery cathode, channelling contrast,
-  charging, nanograins (EBSD vs TKD), and a fly-through.
+  charging, nanograins (EBSD vs TKD), a cryo lamella from a frozen cell, gallium vs argon in ice, and a fly-through.
 
 ### Everything from the TEM exhibit's infrastructure
 
@@ -60,29 +71,32 @@ everything the SEM exhibit does, plus a focused ion beam that images, mills, dep
   patterning); pop it out to a second screen. The Console is the [TEM-view Console](https://advanced-em.github.io/TEM-view/console/): the same hardware drives both exhibits.
 - **Training scenarios with hidden truth and telemetry:** *SEM: focus and stigmate*, *Ion beam: focus without
   destroying it* (scored on sharpness and on the material your imaging removed), *Dual beam: find the eucentric
-  height* (the stage Z reading is offset), and *Lamella: thin to 100 nm* (the true thickness is hidden). Consent
+  height* (the stage Z reading is offset), *Lamella: thin to 100 nm* and *Cryo lamella: 200 nm for cryo-ET* (the true
+  thickness is hidden). Consent
   first; sessions are recorded as `fib-view-telemetry/1` (no personal data), can be downloaded, replayed with a
   scrubber and the true score over time, analysed with `tools/analysis/sessions.py`, and shared with a Hugging Face
   dataset through [`hf/`](hf/README.md) (a Cloudflare Worker or an HF Space collector, and `hf/build_dataset.py`
   for the `sessions` and `steps` tables). `js/config.js` holds the collector address (empty: local only).
 - **AI mode (brain button, `/`):** a command bar and push-to-talk voice (`M`) with a FIB grammar ("switch to
   xenon", "ion current 1 nA", "tilt to 52", "mill a box 10 by 5 by 2 microns", "clean the face", "deposit 1 micron
-  of platinum", "slice and view", "next step", "thin to 100 nm", "polish at 5 kV"), spell correction with
+  of platinum", "slice and view", "next step", "thin to 100 nm", "polish at 5 kV", "cryo lamella", "sputter coat",
+  "milling angle 12", "mill to 800 nm at 300 pA", "anticontaminator on"), spell correction with
   confirmation, and analyses: `measure_resolution`, `measure_mill`, `sputter_yield`, `fit_eds`, `ebsd_stats`,
-  `sv_fractions`, `lamella_thickness`, `ion_range`, each compared with the simulator's truth.
-- **AI agents:** [`tools/fibview-mcp`](tools/fibview-mcp/README.md) is an MCP server: headless `simulate`, `mill`
-  and `ion_physics` tools, and live control of an open exhibit after the visitor clicks *Connect agent*
-  (`exhibit_set`, `exhibit_pattern`, `exhibit_command`, `exhibit_acquire`, `exhibit_analyze`, `exhibit_say`,
+  `sv_fractions`, `lamella_thickness`, `cryo_quality`, `ion_range`, each compared with the simulator's truth.
+- **AI agents:** [`tools/fibview-mcp`](tools/fibview-mcp/README.md) is an MCP server: headless `simulate`, `mill`,
+  `cryo_lamella` and `ion_physics` tools, and live control of an open exhibit after the visitor clicks *Connect agent*
+  (`exhibit_set`, `exhibit_pattern`, `exhibit_cryo`, `exhibit_command`, `exhibit_acquire`, `exhibit_analyze`, `exhibit_say`,
   `exhibit_wait_for_voice`). It listens on port 8792 so it can run next to TEM-view's temview-mcp (8790).
 - **Python:** [`tools/fibview-py`](tools/fibview-py/README.md) scripts the instrument (`fib.set`, `fib.mill`,
-  `fib.deposit`, `fib.lamella`, `fib.acquire`, `fib.analyze`, challenges). The same scripts run in the exhibit's
+  `fib.deposit`, `fib.lamella`, `fib.cryo`, `fib.acquire`, `fib.analyze`, challenges). The same scripts run in the exhibit's
   Python IDE (`P`, Pyodide), headless on a desktop, or driving an open exhibit.
 - **Acquire** (`I`): numbered acquisitions in a gallery, each downloadable as PNG or NumPy `.npz` with metadata
   (calibrations, beams, pattern depth maps, lamella truth). **Export** and **save/load sessions** (including the
   milled patterns). **Headless:** `node tools/headless.mjs --mode mill --spec chip --ion Xe --mill rcs:16x8x6`.
 - **Guides** ([`docs/guides/`](docs/guides/index.html), linked from the exhibit's header): printable SOPs with figures
   computed by the exhibit. *SOP-01 TEM lamella lift-out* (cap, trenches, cleaning, J-cut, lift-out, thinning with
-  over-tilt, 5/2 kV polish, troubleshooting, checklist) and *SOP-02 Python scripting*. Regenerate the figures with
+  over-tilt, 5/2 kV polish, troubleshooting, checklist), *SOP-02 Python scripting* and *SOP-03 Cryo lamella for cryo-ET*
+  (cryo stage, sputter coat, cold GIS, milling angle, relief cuts, milling to 200 nm, Ga vs Ar vs Xe damage, cryo slice & view). Regenerate the figures with
   `node tools/guide-figs.mjs` and the PDFs with `node tools/guides.mjs` (both use Chrome).
 - **Narration** (speaker buttons, `N` for auto-narrate) with the browser's speech synthesis, General or Physics
   level, female or male voice. **Educational ↔ realistic** toggle. **Results panel** enlarge (`X`) or pop out.
@@ -110,7 +124,7 @@ set and social-preview banner with `node tools/icons.mjs` (all three use Chrome)
 
 ## Controls
 
-Drag the instrument to orbit, scroll to zoom. Keys `1`–`9`, `0`, `-`, `=` switch modes, `Space` pauses, `C`
+Drag the instrument to orbit, scroll to zoom. Keys `1`–`9`, `0`, `-`, `=` switch modes (`\` the cryo lamella), `Space` pauses, `C`
 clarity, `L` labels, `R` resets the view, `N` narration, `X` enlarges the results, `V` on-screen panel, `I`
 acquire, `U` start/stop patterning, `T` training, `P` Python, `/` AI mode, hold `M` to talk, `[` `]` fold the side
 panels. Drag the image to move the stage (Alt-drag in Mill and Deposit, where a plain drag draws a pattern), scroll
@@ -121,7 +135,7 @@ it to zoom. In BSE click the quadrants; in EDS click a peak; in EBSD/TKD hover t
 | File | Role |
 | --- | --- |
 | `js/physics.js` | Electron and ion probes, materials, yields and ranges, sputtering (Sigmund/ZBL/Yamamura), ion-induced SE and SI, binary-collision Monte Carlo, deposition, crystallography, volumetric specimens |
-| `js/mill.js` | Patterning engine (adaptive per-pattern grids: milling, deposition, imaging damage, redeposition), lamella workflow model |
+| `js/mill.js` | Patterning engine (adaptive per-pattern grids: milling, deposition, imaging damage, redeposition), lamella and cryo lamella workflow models |
 | `js/sim.js` | Ray-cast imaging for both beams, ion images, EBSD/TKD, EDS, Monte Carlo runners, slice & view |
 | `js/ops.js`, `js/twin.js` | The instrument's operations without a page (shared by the UI, voice, agents, Python, headless) |
 | `js/render2d.js` | Detector views, pattern overlays, curves, orthoslices, lamella views |

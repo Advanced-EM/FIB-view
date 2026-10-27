@@ -42,3 +42,15 @@ def test_challenge(fib):
     fib.set(stage_z_um=0)
     assert fib.score()["score"] == 100
     fib.end_challenge()
+
+
+def test_cryo_lamella(fib):
+    fib.set(mode="cryo", ion="Xe", milling_angle_deg=12, relief_cuts=True)
+    fib.cryo("reset")
+    for _ in range(4):
+        fib.cryo("next")
+    for current, target in [(1000, 2500), (300, 800), (100, 400), (30, 200)]:
+        fib.cryo("mill", target_nm=target, current_pA=current)
+    q = fib.cryo("coat")["quality"]
+    assert q["t"] < 300 and q["devit_pct"] == 0 and not q["bent"]
+    assert q["damage"][0] < 30  # xenon leaves a thinner damaged layer than gallium

@@ -119,6 +119,20 @@ class Microscope:
             a["kV"] = kV
         return self._t.call("lamella", a)
 
+    def cryo(self, action: str = "next", target_nm: float | None = None, current_pA: float | None = None,
+             kV: float | None = None) -> dict:
+        """The cryo lamella of frozen cells: action="next" runs the next preparation step (sputter coat, cold GIS,
+        milling angle, relief cuts); "mill" mills both boxes toward target_nm at current_pA; "coat" is the final
+        sputter coat; "reset" starts again. Returns the step, the instrument time and the true quality."""
+        a = {"action": action}
+        if target_nm is not None:
+            a["target_nm"] = target_nm
+        if current_pA is not None:
+            a["current_pA"] = current_pA
+        if kV is not None:
+            a["kV"] = kV
+        return self._t.call("cryo", a)
+
     def acquire(self, steps: int | None = None) -> Acquisition:
         """Record the detectors. The simulator first advances `steps` frames of 50 ms (a sensible default by mode)."""
         r = self._t.call("acquire", {} if steps is None else {"steps": int(steps)})
