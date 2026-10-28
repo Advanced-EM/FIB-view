@@ -839,6 +839,7 @@ function drawCryo(sim, S, m, s) {
 function drawSV(sim, S, m, s) {
   const sv = sim.sv, { ctx, W, H, dpr } = m;
   if (!sv || !sv.k) { label(ctx, 'milling the first slice…', W / 2, H / 2, dpr, { color: C.text, align: 'center' }); return; }
+  if (S.svView === '3d' && layout.recon) return drawSV3D(sim, S, m, s);
   const k = sv.k - 1, img = sv.stack[k], fh = S.svTiltCorr ? H * (sv.Hz / sv.W) : H * (sv.Hz / sv.W) * Math.sin(P.ION_TILT * P.DEG);
   const lh = rangeLH(img);
   paint(ctx, img, sv.nx, sv.nz, [0, (H - fh) / 2, W, fh], { ...lh, lut: real(S) ? LUT.gray : LUT.sem });
@@ -856,8 +857,27 @@ function drawSV(sim, S, m, s) {
   label(q, `XY at depth ${(S.svZ * sv.Hz).toFixed(1)} µm · rows = ${sv.k} slices (${(sv.k * sv.s).toFixed(1)} µm, stretched)`, gap, 10 * d, d, { color: C.muted, size: 8.5 });
   paint(q, yz, sv.k, sv.nz, [gap, 40 * d + ph2, pw2, ph2], { ...lh, lut: real(S) ? LUT.gray : LUT.sem });
   label(q, `YZ at x = ${(S.svX * sv.W).toFixed(1)} µm · columns = slices`, gap, 28 * d + ph2, d, { color: C.muted, size: 8.5 });
-  // phase fractions
-  const f = sim.svFractions(), bx = 3 * gap + 2 * pw, bw = s.W - bx - gap, cols = ['#30363f', '#7c858f', '#9bb7e0'];
+  drawFractions(sim, q, 3 * gap + 2 * pw, s.W - gap, d, s.H);
+}
+// the 3D reconstruction (main view) with the current face and the phase fractions beside it
+function drawSV3D(sim, S, m, s) {
+  const sv = sim.sv, { ctx, W, H, dpr } = m, rc = layout.recon;
+  const cv = rc.render(sim, S, Math.round(W), Math.round(H), layout.reconDt ?? 0);
+  layout.reconDt = 0;
+  if (!cv) { label(ctx, 'the 3D view needs WebGL', W / 2, H / 2, dpr, { color: C.warm, align: 'center' }); return; }
+  ctx.drawImage(cv, 0, 0, W, H);
+  const f = sim.svFractions(), shown = S.svShow === 'both' ? `${f.names[1]} and ${f.names[2]}` : f.names[S.svShow === '1' ? 1 : 2];
+  label(ctx, `3D reconstruction · ${sv.k} slices · ${shown} (segmented) · drag to rotate, scroll to zoom`, 8 * dpr, 16 * dpr, dpr, { color: C.accent, size: 9 });
+  if (rc.dims) label(ctx, `block ${rc.dims.W.toFixed(1)} × ${rc.dims.H.toFixed(1)} × ${rc.dims.L.toFixed(1)} µm · voxel ${rc.dims.voxel.map((v) => Math.round(v * 1000)).join(' × ')} nm · ${rc.n.toLocaleString()} surface voxels${sv.done ? '' : ' · growing'}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
+  // secondary: the current face and the fractions
+  const q = s.ctx, d = s.dpr, gap = 10 * d, fw = (s.W - 3 * gap) * 0.62, img = sv.stack[sv.k - 1], fh = Math.min(s.H - 40 * d, fw * (sv.Hz / sv.W));
+  paint(q, img, sv.nx, sv.nz, [gap, 22 * d, fw, fh], { ...rangeLH(img), lut: real(S) ? LUT.gray : LUT.sem });
+  label(q, `the current face · slice ${sv.k}/${S.svN} · ${S.svDet.toUpperCase()} ${S.kV} kV`, gap, 10 * d, d, { color: C.muted, size: 8.5 });
+  label(q, `instrument time ${(sv.t / 60).toFixed(1)} min${sv.done ? ' · done' : ''}`, gap, 22 * d + fh + 14 * d, d, { color: C.muted, size: 8.5 });
+  drawFractions(sim, q, 2 * gap + fw, s.W - gap, d, s.H);
+}
+function drawFractions(sim, q, bx, x1, d, Hc) {
+  const f = sim.svFractions(), bw = x1 - bx, cols = ['#30363f', '#7c858f', '#9bb7e0'];
   if (f) f.names.forEach((nm, i) => {
     const y = 26 * d + i * 34 * d;
     label(q, nm, bx, y, d, { color: C.text, size: 8.5 });
@@ -865,7 +885,7 @@ function drawSV(sim, S, m, s) {
     q.strokeStyle = C.warm; q.lineWidth = 1.5 * d; q.beginPath(); q.moveTo(bx + bw * f.truth[i], y + 6 * d); q.lineTo(bx + bw * f.truth[i], y + 17 * d); q.stroke();
     label(q, `${Math.round(f.measured[i] * 100)}% (true ${Math.round(f.truth[i] * 100)}%)`, bx + bw, y, d, { color: C.muted, size: 8, align: 'right' });
   });
-  label(q, 'segmented vs true (orange)', bx, s.H - 12 * d, d, { color: C.muted, size: 8.5 });
+  label(q, 'segmented vs true (orange)', bx, Hc - 12 * d, d, { color: C.muted, size: 8.5 });
 }
 
 // ------------------------------------------------------------------ ion collision cascade

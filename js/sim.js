@@ -713,11 +713,16 @@ export class Sim {
     return mk === 'vac' ? 'Binder' : mk;
   }
   // segmentation by thresholds between the phases' expected signal levels; compared with the truth
+  // the thresholds that segment the slice images into three phases (from the phases' expected signal levels)
+  svSegmentation() {
+    const S = this.S, lv = (mk) => (S.svDet === 'bse' ? P.eta(P.MAT[mk].Z) : P.delta(P.MAT[mk], S.kV) * 0.6 + P.eta(P.MAT[mk].Z) * 0.6);
+    const chip = S.spec === 'chip', cryo = !!this.spec.cryo, lp = cryo ? lv('Ice') : 0, lb = lv(chip ? 'SiO2' : cryo ? 'Cyto' : 'Binder'), ln = lv(chip ? 'Cu' : cryo ? 'Lipid' : 'NMC');
+    return { t1: (lp + lb) / 2, t2: (lb + ln) / 2, names: chip ? ['voids', 'dielectric', 'metal'] : cryo ? ['ice', 'cytoplasm', 'lipid & nuclei'] : ['pores', 'binder', 'particles'] };
+  }
   svFractions() {
     const sv = this.sv;
     if (!sv?.k) return null;
-    const S = this.S, lv = (mk) => (S.svDet === 'bse' ? P.eta(P.MAT[mk].Z) : P.delta(P.MAT[mk], S.kV) * 0.6 + P.eta(P.MAT[mk].Z) * 0.6);
-    const chip = S.spec === 'chip', cryo = !!this.spec.cryo, lp = cryo ? lv('Ice') : 0, lb = lv(chip ? 'SiO2' : cryo ? 'Cyto' : 'Binder'), ln = lv(chip ? 'Cu' : cryo ? 'Lipid' : 'NMC'), t1 = (lp + lb) / 2, t2 = (lb + ln) / 2;
+    const { t1, t2, names } = this.svSegmentation();
     const meas = [0, 0, 0], tru = [0, 0, 0];
     let nm = 0, nt = 0;
     for (let s = 0; s < sv.k; s++) {
@@ -728,7 +733,7 @@ export class Sim {
         if (t[k] < 3) { tru[t[k]]++; nt++; }
       }
     }
-    return { measured: meas.map((v) => v / (nm || 1)), truth: tru.map((v) => v / (nt || 1)), names: chip ? ['voids', 'dielectric', 'metal'] : cryo ? ['ice', 'cytoplasm', 'lipid & nuclei'] : ['pores', 'binder', 'particles'] };
+    return { measured: meas.map((v) => v / (nm || 1)), truth: tru.map((v) => v / (nt || 1)), names };
   }
 
   // ------------------------------------------------------------------ main update

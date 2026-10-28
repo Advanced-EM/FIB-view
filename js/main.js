@@ -19,6 +19,7 @@ import { analyze } from './analyze.js';
 import { ScriptCore, b64, stateSummary } from './scripting.js';
 import { PythonIDE } from './ide.js';
 import { Narrator } from './narration.js';
+import { Recon3D } from './recon3d.js';
 import { SUPPORT, AGENT } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -28,8 +29,10 @@ const store = (k, v) => { try { if (v === undefined) return localStorage.getItem
 
 // ------------------------------------------------------------------ state
 const S = defaultState();
+const recon = new Recon3D();
 const sim = new Sim(S);
 const scene = new Scene3D($('#gl'), $('#labels'));
+R2.layout.recon = recon;
 const mainCv = $('#detMain'), secCv = $('#detSec');
 let hoverIdx = -1, redraw = false;
 
@@ -42,7 +45,7 @@ const MODES = [
 // keys 1–0, -, = in order; the cryo lamella (added later) is on \
 const KEYS = Object.fromEntries(MODES.filter(([m]) => m !== 'cryo').map(([m], i) => [m, '1234567890-='[i]]).concat([['cryo', '\\']]));
 const logMap = (min, max) => ({ to: (v) => (Math.log(v / min) / Math.log(max / min)) * 1000, from: (t) => min * Math.pow(max / min, t / 1000) });
-const IMG = 'se inlens bse', EB = 'se inlens bse ebsd tkd eds', IONM = 'fib mill gis lam cryo sv', PATM = 'mill gis';
+const IMG = 'se inlens bse', EB = 'se inlens bse ebsd tkd eds', IONM = 'fib mill gis lam cryo sv', PATM = 'mill gis lam';
 const beamNow = () => OPS.activeBeam(S);
 const SPEC_KEYS_ALL = ['chip', 'ni', 'sn', 'nmc', 'xs', 'cell', 'hpf'];
 const SPEC_OK = { lam: ['chip'], cryo: ['cell'], sv: ['nmc', 'chip', 'hpf'], tkd: ['xs'], ebsd: ['chip', 'ni', 'xs'], fib: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], mill: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], gis: ['chip', 'ni', 'sn', 'nmc'] };
@@ -86,7 +89,8 @@ const CONTROLS = [
   { chips: 'fibDet', label: 'Detector', opts: [['ise', 'Ion-induced electrons'], ['si', 'Secondary ions']], modes: 'fib' },
   { toggles: [['flood', 'Electron flood (charge neutraliser)']], modes: 'fib mill gis' },
 
-  { sec: 'Patterning', modes: 'mill' },
+  // in the lamella workflow, your own patterns can be drawn while the lamella is still in the chip (steps 1–6)
+  { sec: 'Patterning', modes: 'mill lam', show: () => S.mode !== 'lam' || sim.lam.step < 6 },
   { chips: 'shape', opts: Object.entries(SHAPES).map(([k, v]) => [k, v.replace(' cross-section', ' x-section')]) },
   { slider: 'patW', label: 'Width', min: 0.2, max: 200, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
   { slider: 'patH', label: 'Height', min: 0.05, max: 200, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
@@ -102,7 +106,7 @@ const CONTROLS = [
   { slider: 'depThick', label: 'Thickness', min: 0.02, max: 5, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
   { toggles: [['realTime', 'Real time']] },
 
-  { sec: 'Patterns', modes: PATM },
+  { sec: 'Patterns', modes: PATM, show: () => S.mode !== 'lam' || sim.lam.step < 6 },
   { p: 'Drag on the ion image to draw a pattern. Patterns run one after another, like a real patterning engine.' },
   { buttons: [['addPattern', 'Add at centre'], ['millToggle', 'Start'], ['undoPattern', 'Undo']] },
   { custom: 'patterns' },
@@ -135,8 +139,10 @@ const CONTROLS = [
   { slider: 'svSlice', label: 'Slice thickness', min: 5, max: 1000, log: true, fmt: (v) => `${Math.round(v)} nm` },
   { slider: 'svN', label: 'Slices', min: 10, max: 200, step: 1, fmt: (v) => `${v}`, inv: 'svN' },
   { chips: 'svDet', label: 'Imaging', opts: [['bse', 'BSE (composition)'], ['se', 'SE (topography)']] },
-  { slider: 'svZ', label: 'XY slice depth', min: 0, max: 0.99, step: 0.01, fmt: (v) => `${(v * (sim.sv?.Hz ?? 10)).toFixed(1)} µm`, inv: 'svView' },
-  { slider: 'svX', label: 'YZ slice position', min: 0, max: 0.99, step: 0.01, fmt: (v) => `${(v * (sim.sv?.W ?? 20)).toFixed(1)} µm`, inv: 'svView' },
+  { chips: 'svView', label: 'Show', opts: [['slices', 'Orthogonal slices'], ['3d', '3D reconstruction']] },
+  { chips: 'svShow', label: 'Phases in 3D', dynOpts: () => { const n = sim.svSegmentation().names; return [['2', n[2]], ['1', n[1]], ['both', 'both']]; }, show: () => S.svView === '3d' },
+  { slider: 'svZ', label: 'XY slice depth', min: 0, max: 0.99, step: 0.01, fmt: (v) => `${(v * (sim.sv?.Hz ?? 10)).toFixed(1)} µm`, inv: 'svView', show: () => S.svView !== '3d' },
+  { slider: 'svX', label: 'YZ slice position', min: 0, max: 0.99, step: 0.01, fmt: (v) => `${(v * (sim.sv?.W ?? 20)).toFixed(1)} µm`, inv: 'svView', show: () => S.svView !== '3d' },
   { toggles: [['svTiltCorr', 'Tilt correction'], ['rocking', 'Rocking mill']] },
   { buttons: [['svRestart', 'Restart']] },
 
@@ -237,8 +243,12 @@ function build() {
     panelEl.appendChild(el);
   }
   // elements after a moded section header share its modes
-  let secModes = null;
-  for (const b of bound) if (b.c.sec) secModes = b.c.modes || null; else if (secModes && !b.c.modes) b.el.dataset.modes = secModes;
+  let secModes = null, secShow = null;
+  for (const b of bound) {
+    if (b.c.sec) { secModes = b.c.modes || null; secShow = b.c.show || null; continue; }
+    if (secModes && !b.c.modes) b.el.dataset.modes = secModes;
+    if (secShow && !b.c.show) b.c.show = secShow;
+  }
 }
 function renderChips(b) {
   const opts = b.c.dynOpts ? b.c.dynOpts() : b.c.opts, sig = JSON.stringify(opts);
@@ -291,7 +301,7 @@ function refresh() {
 }
 
 // ------------------------------------------------------------------ state changes
-const QUIET = ['cryoSputter', 'cryoGIS', 'cryoAngle', 'cryoRelief', 'cryoI', 'cryoTarget', 'cryoT', 'anticontam', 'speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotate', 'paused', 'showHough', 'cross', 'realTime', 'svZ', 'svX', 'lamI', 'lamKV', 'lamTarget', 'lamOver'];
+const QUIET = ['svView', 'svShow', 'cryoSputter', 'cryoGIS', 'cryoAngle', 'cryoRelief', 'cryoI', 'cryoTarget', 'cryoT', 'anticontam', 'speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotate', 'paused', 'showHough', 'cross', 'realTime', 'svZ', 'svX', 'lamI', 'lamKV', 'lamTarget', 'lamOver'];
 function set(key, v, inv = key) {
   if (S[key] === v) return;
   S[key] = v;
@@ -508,7 +518,7 @@ function header() {
     fib: [`Ion image · ${P.ION[S.ion].name} · ${S.fibDet === 'si' ? 'secondary ions' : 'ion-induced electrons'}`, 'Sputter yield vs angle · probe vs current'],
     mill: [`Ion view · patterning with ${P.ION[S.ion].name}`, `SEM at ${S.tilt}° · profile through the pattern`],
     gis: [`Ion view · ${P.DEP_GAS[S.depGas].name}`, `SEM at ${S.tilt}° · growth vs current density`],
-    sv: ['Slice & view · the current face', 'Orthogonal slices · phase fractions'],
+    sv: S.svView === '3d' ? ['Slice & view · 3D reconstruction', 'The current face · phase fractions'] : ['Slice & view · the current face', 'Orthogonal slices · phase fractions'],
     lam: ['Lamella · ion view', 'SEM view of the face · thickness profile'],
     cryo: [sim.cryo.step < 3 ? `Cryo · ion view of the frozen cells · ${P.ION[S.ion].name}` : `Cryo lamella · ion view at ${sim.cryo.angle}°`, sim.cryo.step < 3 ? `SEM at ${S.tilt}° · ${S.coated ? 'coated' : 'uncoated ice'}` : 'SEM from above · thickness through the lamella'],
     mc: [S.mcBeam === 'ion' ? `Ion collision cascades · ${P.ION[S.ion].name}` : 'Electron trajectories · side view', S.mcBeam === 'ion' ? 'Implantation, damage, sputtered atoms' : 'Backscatter energies & depth profiles'],
@@ -816,14 +826,17 @@ function wire() {
   // detector interactions: drag to move the stage (draw a pattern in Mill/Deposit), scroll to zoom
   let drag = null;
   const mapMode = () => S.mode === 'ebsd' || S.mode === 'tkd';
-  const patMode = () => S.mode === 'mill' || S.mode === 'gis';
+  // patterns can be drawn while milling, depositing, and in the lamella workflow while the lamella is still in the chip
+  const patMode = () => S.mode === 'mill' || S.mode === 'gis' || (S.mode === 'lam' && sim.lam.step < 6);
+  const recon3d = () => S.mode === 'sv' && S.svView === '3d';
   const toSample = (e) => {
-    const r = mainCv.getBoundingClientRect(), th = ['fib', 'mill', 'gis', 'lam'].includes(S.mode) ? sim.thetaI() : sim.thetaE();
+    const r = mainCv.getBoundingClientRect(), th = ['fib', 'mill', 'gis', 'lam', 'cryo'].includes(S.mode) ? sim.thetaI() : sim.thetaE();
     const pj = R2.projector(sim, S, th, r.width, r.height);
     return pj.from(e.clientX - r.left, e.clientY - r.top);
   };
   mainCv.addEventListener('pointerdown', (e) => {
     mainCv.setPointerCapture(e.pointerId);
+    if (recon3d()) { drag = { rot: true, x: e.clientX, y: e.clientY }; return; }
     if (patMode() && !e.altKey && e.button === 0) { const r = mainCv.getBoundingClientRect(); drag = { pat: true, x0: e.clientX - r.left, y0: e.clientY - r.top, s0: toSample(e) }; return; }
     drag = { x: e.clientX, y: e.clientY, cx: S.cx, cy: S.cy, moved: false };
   });
@@ -835,6 +848,7 @@ function wire() {
       return;
     }
     if (!drag) return;
+    if (drag.rot) { recon.drag(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY; redraw = true; return; }
     if (drag.pat) { R2.layout.drag = { x0: Math.min(drag.x0, e.clientX - r.left), y0: Math.min(drag.y0, e.clientY - r.top), x1: Math.max(drag.x0, e.clientX - r.left), y1: Math.max(drag.y0, e.clientY - r.top) }; redraw = true; return; }
     const sc = (mapMode() && sim.map ? sim.map.fov : S.fov) / r.width;
     S.cx = drag.cx - (e.clientX - drag.x) * sc; S.cy = drag.cy + (e.clientY - drag.y) * sc; drag.moved = true;
@@ -858,7 +872,8 @@ function wire() {
   };
   mainCv.addEventListener('pointerup', end); mainCv.addEventListener('pointercancel', () => { drag = null; R2.layout.drag = null; });
   mainCv.addEventListener('pointerleave', () => { if (hoverIdx >= 0) { hoverIdx = -1; sim.version++; } });
-  mainCv.addEventListener('wheel', (e) => { if (S.mode === 'mc' || S.mode === 'sv') return; e.preventDefault(); set('fov', clamp(S.fov * Math.pow(1.0015, e.deltaY), sim.spec.fovMin, sim.spec.fovMax), 'fov'); }, { passive: false });
+  mainCv.addEventListener('dblclick', () => { if (recon3d()) { recon.spin = !recon.spin; redraw = true; } });
+  mainCv.addEventListener('wheel', (e) => { if (recon3d()) { e.preventDefault(); recon.zoom(Math.pow(1.0015, e.deltaY)); redraw = true; return; } if (S.mode === 'mc' || S.mode === 'sv') return; e.preventDefault(); set('fov', clamp(S.fov * Math.pow(1.0015, e.deltaY), sim.spec.fovMin, sim.spec.fovMax), 'fov'); }, { passive: false });
   secCv.addEventListener('pointerdown', (e) => {
     if (S.mode === 'bse' && R2.layout.quad) {
       const r = secCv.getBoundingClientRect(), Q = R2.layout.quad, x = e.clientX - r.left - Q.cx, y = Q.cy - (e.clientY - r.top), rad = Math.hypot(x, y);
@@ -924,6 +939,7 @@ function frame(now) {
     if (S.mode === 'lam' && OPS.lamTick(sim)) { refresh(); explainLam(LAM_STEPS[sim.lam.step]?.id ?? 'thin', 0); }
     const act = sim.mill.active?.id ?? null;
     if (act !== lastActive) { lastActive = act; refresh(); }
+    if (S.mode === 'sv' && S.svView === '3d') { R2.layout.reconDt = (R2.layout.reconDt ?? 0) + dt; if (recon.spin && now - lastDraw > 33) redraw = true; }
     const live = (S.clarity === 'real' && (IMG.includes(S.mode) || S.mode === 'fib') && !S.paused) || (S.mode === 'cryo' && now - lastDraw > 1000);
     if (sim.version !== lastVer || (live && now - lastDraw > 90) || redraw) {
       redraw = false;
