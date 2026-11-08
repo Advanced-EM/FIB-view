@@ -1,6 +1,8 @@
 // The exhibit's state: defaults, and the keys a saved session (or a replay) restores.
 export function defaultState() {
   return {
+    // the NUANCE instrument being modelled (js/instruments.js): h5uc, hydra, h600, or generic (teaching)
+    inst: 'h5uc',
     mode: 'se', clarity: 'edu', spec: 'chip', fov: 40, cx: 0, cy: 0, tilt: 0, ez: 0, coated: false,
     // electron column
     kV: 2, current: 100, aperture: 30, wd: 4, focus: 0, stig: 0, dwell: 2,

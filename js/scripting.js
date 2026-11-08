@@ -17,6 +17,7 @@ export const SCRIPT_API = 1;
 const SPECS = P.SPEC_KEYS;
 const CHALLENGES = ['sem-focus-stig', 'fib-focus-stig', 'eucentric'];
 const SETTINGS = {
+  instrument: 'h5uc (Helios 5 UC, Ga), hydra (Helios 5 Hydra CX plasma: Xe, Ar, O, N; EBSD; cryo), h600 (Helios NanoLab 600, Ga) or generic (teaching: everything)',
   mode: MODES.join(', '), specimen: SPECS.join(', '), kV: 'electron beam, 0.5–30', current_pA: 'electron probe current', wd_mm: 'working distance',
   tilt_deg: 'stage tilt (52: ion beam normal to the surface)', fov_um: 'field of view', focus_um: 'electron focus', stage_z_um: 'height above/below the coincidence point',
   ion: 'Ga, Xe, Ar, N, O', ion_kV: 'ion beam, 1–30', ion_current_pA: 'snaps to the aperture strip', ion_focus_um: 'ion focus', stig: 'electron stigmator', ion_stig: 'ion stigmator', detector: 'ise or si (ion image)',
@@ -28,6 +29,7 @@ export function settingsToOps(a) {
   const bad = Object.keys(a).filter((k) => !(k in SETTINGS));
   if (bad.length) throw new Error(`unknown setting ${bad.join(', ')}. Settings: ${Object.keys(SETTINGS).join(', ')}`);
   const ops = [];
+  if (a.instrument !== undefined) { if (!['h5uc', 'hydra', 'h600', 'generic'].includes(a.instrument)) throw new Error('instrument must be h5uc, hydra, h600 or generic'); ops.push({ op: 'inst', v: a.instrument }); }
   if (a.specimen !== undefined) { if (!SPECS.includes(a.specimen)) throw new Error(`specimen must be one of ${SPECS.join(', ')}`); ops.push({ op: 'spec', v: a.specimen }); }
   if (a.mode !== undefined) { if (!MODES.includes(a.mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`); ops.push({ op: 'mode', v: a.mode }); }
   if (a.ion !== undefined) { if (!P.ION[a.ion]) throw new Error('ion must be Ga, Xe, Ar, N or O'); ops.push({ op: 'chip', k: 'ion', v: a.ion }); }
@@ -57,7 +59,7 @@ export function settingsToOps(a) {
 export function stateSummary(S, sim) {
   const pe = sim.probe, pi = sim.iprobe, s = sim.sampleAt(S.cx, S.cy), y = P.sputter(S.ion, P.MAT[s.mat].rho ? s.mat : 'Si', S.ikV);
   return {
-    mode: S.mode, active_beam: activeBeam(S), specimen: S.spec, specimen_name: sim.spec.name, fov_um: S.fov, center_um: [S.cx, S.cy], tilt_deg: S.tilt, stage_z_um: S.ez,
+    instrument: { key: S.inst, name: P.instrument().name }, mode: S.mode, active_beam: activeBeam(S), specimen: S.spec, specimen_name: sim.spec.name, fov_um: S.fov, center_um: [S.cx, S.cy], tilt_deg: S.tilt, stage_z_um: S.ez,
     electron: { kV: S.kV, current_pA: S.current, wd_mm: S.wd, aperture_um: S.aperture, probe_nm: +pe.d.toFixed(2), focus_um: S.focus },
     ion: { species: S.ion, source: P.ION[S.ion].src, kV: S.ikV, current_pA: S.icur, probe_nm: +pi.d.toFixed(1), focus_um: S.ifocus, detector: S.fibDet },
     under_beam: { material: P.MAT[s.mat].name, sputter_yield_atoms_per_ion: +y.Y.toFixed(3), volume_yield_um3_per_nC: +y.Yv.toFixed(4) },

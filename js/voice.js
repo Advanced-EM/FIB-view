@@ -90,6 +90,12 @@ export function parseCommand(raw, ctx = {}) {
   }
   if (/^(analy[sz]e|analysis|run (an |the )?analysis|measure (this|it))\b/.test(t)) return { ops: [{ op: 'analyze', v: null }] };
 
+  // the NUANCE instruments: "use the hydra", "switch to the helios 5", "helios 600", "teaching instrument"
+  if (has(/\b(hydra|plasma fib|pfib)\b/) && has(/\b(use|switch|go|change|load|move|to|on)\b/)) return { ops: [{ op: 'inst', v: 'hydra' }] };
+  if (has(/\bhelios\s*(600|six hundred|nanolab)\b/)) return { ops: [{ op: 'inst', v: 'h600' }] };
+  if (has(/\bhelios\s*(5|five)\b|\bhelios uc\b/)) return { ops: [{ op: 'inst', v: 'h5uc' }] };
+  if (has(/\b(teaching|generic) (instrument|dual beam|microscope)\b/)) return { ops: [{ op: 'inst', v: 'generic' }] };
+
   // cryo lamella: "next step", "sputter coat", "mill to 800 nm at 300 pA", "milling angle 12", "anticontaminator on"
   if (ctx.mode === 'cryo') {
     if ((m = t.match(new RegExp(String.raw`\b(?:mill|thin|polish)\w*(?:\s+(?:it|the lamella|both boxes|the boxes))?\s+(?:to|down to)\s+${NUM}${LEN}`)))) {
@@ -201,11 +207,11 @@ export function parseCommand(raw, ctx = {}) {
 
 export const HELP = 'Try: "cryo lamella", "mill to 800 nm at 300 pA", "switch to xenon", "ion current 1 nA", "tilt to 52", "mill a cross-section", "clean the face", "deposit 1 micron of platinum", "slice and view", "next step", "thin to 100 nm", "5 kV", "zoom in", "acquire". Measure: "what is the sputter yield?", "how deep is the trench?", "measure the resolution", "measure the porosity". Or ask a question.';
 const ANALYSIS_NAMES = { measure_resolution: 'Measure the resolution', measure_mill: 'Measure the milled depth and volume', sputter_yield: 'Sputter yield of the last pattern', fit_eds: 'Fit the EDS peaks', ebsd_stats: 'EBSD statistics', sv_fractions: 'Phase fractions from slice & view', lamella_thickness: 'Lamella thickness', cryo_quality: 'Cryo lamella thickness and quality', ion_range: 'Ion range and damage depth' };
-export const EXAMPLES = ['switch to xenon', 'use the oxygen plasma', 'ion current 1 nA', 'ion current 30 pA', 'tilt to 52', 'eucentric height', 'mill a cross-section', 'mill a box 10 by 5 by 2 microns', 'clean the face', 'stop milling', 'deposit 1 micron of platinum', 'electron beam platinum', 'enhanced etch', 'rocking mill on', 'flood gun on', 'secondary ions', 'slice and view', 'lamella', 'next step', 'thin to 100 nm', 'polish at 5 kV', 'cryo lamella', 'load the frozen cells', 'sputter coat', 'milling angle 12', 'mill to 800 nm at 300 pA', 'anticontaminator on', 'relief cuts on', 'ion image', 'monte carlo', 'load the battery cathode', 'load nickel', '5 kV', 'zoom in', 'field of view 20 microns', 'auto focus', 'acquire', 'measure the resolution', 'what is the sputter yield?', 'how deep is the trench?', 'how thick is the lamella?', 'measure the porosity', 'what is the ion range?', 'fit the EDS peaks', 'analyze', 'what am I looking at?', 'help'];
+export const EXAMPLES = ['switch to xenon', 'use the oxygen plasma', 'ion current 1 nA', 'ion current 30 pA', 'tilt to 52', 'eucentric height', 'mill a cross-section', 'mill a box 10 by 5 by 2 microns', 'clean the face', 'stop milling', 'deposit 1 micron of platinum', 'electron beam platinum', 'enhanced etch', 'rocking mill on', 'flood gun on', 'secondary ions', 'slice and view', 'lamella', 'next step', 'thin to 100 nm', 'polish at 5 kV', 'use the hydra', 'switch to the helios 5', 'cryo lamella', 'load the frozen cells', 'sputter coat', 'milling angle 12', 'mill to 800 nm at 300 pA', 'anticontaminator on', 'relief cuts on', 'ion image', 'monte carlo', 'load the battery cathode', 'load nickel', '5 kV', 'zoom in', 'field of view 20 microns', 'auto focus', 'acquire', 'measure the resolution', 'what is the sputter yield?', 'how deep is the trench?', 'how thick is the lamella?', 'measure the porosity', 'what is the ion range?', 'fit the EDS peaks', 'analyze', 'what am I looking at?', 'help'];
 
 // ------------------------------------------------------------------ near misses: correct, suggest, then confirm
 const STOP = new Set(['the', 'a', 'an', 'to', 'of', 'in', 'on', 'at', 'is', 'are', 'me', 'please', 'can', 'you', 'it', 'this', 'and', 'my', 'for', 'with', 'now']);
-const EXTRA = ['cryo', 'frozen', 'vitreous', 'yeast', 'sputter', 'coat', 'angle', 'anticontaminator', 'relief', 'se', 'bse', 'ebsd', 'tkd', 'eds', 'ion', 'image', 'mill', 'milling', 'deposit', 'deposition', 'platinum', 'tungsten', 'carbon', 'gallium', 'xenon', 'argon', 'nitrogen', 'oxygen',
+const EXTRA = ['hydra', 'helios', 'pfib', 'nanolab', 'cryo', 'frozen', 'vitreous', 'yeast', 'sputter', 'coat', 'angle', 'anticontaminator', 'relief', 'se', 'bse', 'ebsd', 'tkd', 'eds', 'ion', 'image', 'mill', 'milling', 'deposit', 'deposition', 'platinum', 'tungsten', 'carbon', 'gallium', 'xenon', 'argon', 'nitrogen', 'oxygen',
   'plasma', 'current', 'tilt', 'eucentric', 'cross', 'section', 'cleaning', 'clean', 'face', 'rectangle', 'box', 'circle', 'line', 'trench', 'lamella', 'thin', 'polish', 'slice', 'view',
   'tomography', 'monte', 'carlo', 'cascade', 'battery', 'cathode', 'nickel', 'tin', 'chip', 'microchip', 'focus', 'autofocus', 'zoom', 'magnification', 'field', 'acquire', 'capture',
   'measure', 'resolution', 'sputter', 'yield', 'depth', 'deep', 'thickness', 'porosity', 'range', 'analyze', 'fit', 'peaks', 'help', 'stop', 'start', 'next', 'step', 'previous',
@@ -285,6 +291,7 @@ export function describe(op) {
     case 'zoom': return op.f < 1 ? 'Zoom in' : 'Zoom out';
     case 'pattern': return `Pattern: ${SHAPE_NAMES[op.shape] ?? 'as set'}${op.w ? ` ${op.w} × ${op.h} µm` : ''}${op.depth ? `, ${op.depth} µm deep` : ''}${op.gas ? `, ${op.gas}` : ''}${op.start ? ' · started' : ''}`;
     case 'deposit': return `Deposit ${op.gas}${op.thick ? ` ${op.thick} µm` : ''} with the ${op.beam === 'e' ? 'electron' : 'ion'} beam`;
+    case 'inst': return `Instrument: ${({ h5uc: 'Helios 5 UC (Ga)', hydra: 'Helios 5 Hydra CX (plasma)', h600: 'Helios NanoLab 600 (Ga)', generic: 'teaching dual beam' })[op.v] ?? op.v}`;
     case 'cryo': return op.v === 'next' ? 'Cryo lamella: next step' : op.v === 'mill' ? `Mill both boxes to ${op.target} nm${op.I ? ` at ${fmtI(op.I)}` : ''}` : op.v === 'coat' ? 'Sputter coat' : 'New cryo lamella';
     case 'lam': return op.v === 'next' ? 'Lamella: next step' : op.v === 'thin' ? `Thin the lamella to ${op.target} nm` : `Polish at ${op.kV} kV`;
     case 'action': return op.said ?? op.v;

@@ -9,8 +9,9 @@ import fibview as fv
 fib = fv.connect()
 RECIPE = [(1000, 2500), (300, 800), (100, 400), (30, 200)]  # (current pA, target nm)
 
+# At NUANCE the cryo stage is on the Hydra plasma FIB (Xe, Ar, O, N); gallium cryo needs the teaching instrument.
 for ion in ["Ga", "Ar", "Xe"]:
-    fib.set(mode="cryo", ion=ion, milling_angle_deg=12, relief_cuts=True, stage_temp_C=-190, anticontaminator=True)
+    fib.set(instrument="generic", mode="cryo", ion=ion, milling_angle_deg=12, relief_cuts=True, stage_temp_C=-190, anticontaminator=True)
     fib.cryo("reset")
     for _ in range(4):  # sputter coat, cold GIS, milling angle, relief cuts
         fib.cryo("next")

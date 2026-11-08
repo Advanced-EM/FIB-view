@@ -24,7 +24,7 @@ ok(!r.isError && m.result.depth_um > 1 && existsSync(m.file), `mill: Xe 8×8 µm
 r = await client.callTool({ name: 'ion_physics', arguments: { ion: 'Ga', kV: 30, material: 'Si' } });
 const ph = JSON.parse(body(r));
 ok(ph.sputter_yield_atoms_per_ion > 1.5 && ph.sputter_yield_atoms_per_ion < 3 && ph.projected_range_nm > 20 && ph.projected_range_nm < 40, `Ga 30 keV in Si: Y ${ph.sputter_yield_atoms_per_ion}, Rp ${ph.projected_range_nm} nm`);
-r = await client.callTool({ name: 'cryo_lamella', arguments: { ion: 'Ga', milling_angle_deg: 12, passes: [{ current_pA: 1000, target_nm: 2500 }, { current_pA: 300, target_nm: 800 }, { current_pA: 100, target_nm: 400 }, { current_pA: 30, target_nm: 200 }] } });
+r = await client.callTool({ name: 'cryo_lamella', arguments: { instrument: 'generic', ion: 'Ga', milling_angle_deg: 12, passes: [{ current_pA: 1000, target_nm: 2500 }, { current_pA: 300, target_nm: 800 }, { current_pA: 100, target_nm: 400 }, { current_pA: 30, target_nm: 200 }] } });
 const cr = JSON.parse(body(r));
 ok(!r.isError && cr.result.t < 300 && cr.result.devit_pct === 0 && !cr.result.bent, `cryo_lamella: ${cr.result.t} nm, t/λ ${cr.result.t_lambda}, damage ${cr.result.damage.join('/')} nm, ${cr.result.time_min} min · ${cr.result.verdict}`);
 r = await client.callTool({ name: 'exhibit_set', arguments: { mode: 'mill' } });

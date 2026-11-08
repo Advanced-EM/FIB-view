@@ -34,6 +34,7 @@ export const MODE_BEAM = { se: 'e', inlens: 'e', bse: 'e', ebsd: 'e', tkd: 'e', 
 export class Sim {
   constructor(S) {
     this.S = S;
+    P.useInstrument(S.inst);
     this.mill = new Mill(() => this.spec);
     this.stale = { img: 1, ion: 1, map: 1, eds: 1, mc: 1, sv: 1 };
     this.version = 0;
@@ -620,9 +621,10 @@ export class Sim {
     const e = this.eds, a = this.acc, S = this.S;
     if (!e) return;
     a.t += dt;
-    const rate = (S.current / 1000) * 60000 * dt;
+    // count rate scales with the detector's area (solid angle): 100 mm² is the reference
+    const area = (P.instrument().eds?.area ?? 100) / 100, rate = (S.current / 1000) * 60000 * dt * area;
     for (let b = 0; b < e.nb; b++) { const c = P.poisson(e.spec[b] * rate); a.spec[b] += c; a.total += c; }
-    const k = (S.current / 1000) * 6 * dt;
+    const k = (S.current / 1000) * 6 * dt * area;
     for (const s of e.syms) { const m = e.maps[s], acc = a.maps[s]; for (let i = 0; i < m.length; i++) acc[i] += P.poisson(m[i] * k); }
   }
 

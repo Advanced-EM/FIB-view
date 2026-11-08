@@ -62,6 +62,7 @@ const safe = (fn) => async (args) => { try { return await fn(args); } catch (e) 
 
 // ------------------------------------------------------------------ settings → operations (the same ops as voice commands)
 const settings = {
+  instrument: z.enum(['h5uc', 'hydra', 'h600', 'generic']).optional().describe('the NUANCE (Northwestern) dual beam to model: h5uc = Helios 5 UC (Ga⁺, 1 pA–100 nA); hydra = Helios 5 Hydra CX plasma FIB (Xe/Ar/O/N, 1 pA–2.5 µA, EBSD, cryo stage); h600 = Helios NanoLab 600 (Ga⁺, to 21 nA); generic = teaching instrument with everything'),
   mode: z.enum(MODES).optional().describe('se, inlens, bse, ebsd, tkd, eds (electron beam); fib (ion image), mill, gis (deposition); sv (slice & view), lam (lamella), cryo (cryo lamella of frozen cells); mc (Monte Carlo)'),
   specimen: z.enum(SPEC_KEYS).optional().describe('chip (microchip), ni (polished nickel), sn (tin on carbon), nmc (Li-ion cathode), xs (chip lamella), cell (yeast plunge-frozen on a grid, cryo), hpf (high-pressure-frozen yeast, cryo)'),
   ion: z.enum(ION_KEYS).optional().describe('Ga (liquid-metal source) or Xe, Ar, N, O (plasma source)'),
@@ -80,6 +81,7 @@ const settings = {
 };
 function toOps(a) {
   const ops = [];
+  if (a.instrument) ops.push({ op: 'inst', v: a.instrument });
   if (a.specimen) ops.push({ op: 'spec', v: a.specimen });
   if (a.mode) ops.push({ op: 'mode', v: a.mode });
   if (a.ion) ops.push({ op: 'chip', k: 'ion', v: a.ion });
@@ -154,7 +156,8 @@ server.registerTool('cryo_lamella', {
   title: 'Prepare a cryo lamella (headless)',
   description: 'Make an on-grid cryo lamella from yeast cells in vitreous ice: sputter coat, cold GIS organometallic Pt, milling angle, optional micro-expansion joints, then milling passes (each: current and target thickness) and a final sputter coat. Returns the true result after each pass and at the end: thickness (and t/λ for cryo-ET), damaged layers, devitrification (beam heating or a warm stage), ice contamination, bending, instrument time and a verdict.',
   inputSchema: {
-    ion: z.enum(ION_KEYS).optional().describe('Ga (default), or plasma Ar / Xe'), ion_kV: z.number().min(1).max(30).optional(),
+    instrument: z.enum(['hydra', 'generic']).optional().describe('hydra (default: the NUANCE cryo stage is on the Hydra plasma FIB, so Xe, Ar, O or N) or generic (teaching instrument, which also allows Ga)'),
+    ion: z.enum(ION_KEYS).optional().describe('Xe (default on the Hydra), Ar, O, N; Ga only on the generic instrument'), ion_kV: z.number().min(1).max(30).optional(),
     milling_angle_deg: z.number().min(5).max(30).optional(), relief_cuts: z.boolean().optional(), gis_s: z.number().min(0).max(120).optional(), sputter_s: z.number().min(0).max(120).optional(),
     stage_temp_C: z.number().min(-196).max(20).optional(), anticontaminator: z.boolean().optional(),
     passes: z.array(z.object({ current_pA: z.number().positive(), target_nm: z.number().positive() })).min(1).max(20).describe('e.g. [{current_pA: 1000, target_nm: 2500}, {current_pA: 300, target_nm: 800}, {current_pA: 100, target_nm: 400}, {current_pA: 30, target_nm: 200}]'),
@@ -163,13 +166,14 @@ server.registerTool('cryo_lamella', {
   annotations: { readOnlyHint: true },
 }, safe(async (a) => {
   const tw = createTwin(), { S } = tw;
-  for (const op of toOps({ ion: a.ion, ion_kV: a.ion_kV, stage_temp_C: a.stage_temp_C, anticontaminator: a.anticontaminator, milling_angle_deg: a.milling_angle_deg })) tw.run(op);
+  for (const op of toOps({ instrument: a.instrument ?? 'hydra', ion: a.ion, ion_kV: a.ion_kV, stage_temp_C: a.stage_temp_C, anticontaminator: a.anticontaminator, milling_angle_deg: a.milling_angle_deg })) tw.run(op);
   tw.run({ op: 'mode', v: 'cryo' });
   Object.assign(S, { cryoRelief: a.relief_cuts ?? true, cryoGIS: a.gis_s ?? 20, cryoSputter: a.sputter_s ?? 15 });
   for (let i = 0; i < 4; i++) tw.run({ op: 'cryo', v: 'next' });
   const passes = a.passes.map((p) => { tw.run({ op: 'cryo', v: 'mill', I: p.current_pA, target: p.target_nm }); const q = cryoQuality(tw.sim.cryo); return { current_pA: S.cryoI, target_nm: p.target_nm, t_nm: q.t, devit_pct: q.devit_pct, bent: q.bent, lost: q.lost }; });
   if (a.final_coat !== false) tw.run({ op: 'cryo', v: 'coat' });
-  return text({ ion: S.ion, passes, result: cryoQuality(tw.sim.cryo) });
+  const note = a.ion && a.ion !== S.ion ? `${a.ion} is not available on the ${S.inst} for cryo; used ${S.ion}` : undefined;
+  return text({ instrument: S.inst, ion: S.ion, note, passes, result: cryoQuality(tw.sim.cryo) });
 }));
 
 server.registerTool('ion_physics', {

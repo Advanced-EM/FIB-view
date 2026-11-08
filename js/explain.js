@@ -171,6 +171,11 @@ export function changeText(key, S, sim) {
     case 'cryoAngle': return ['Milling angle', `<b>${S.cryoAngle}°</b> between the ion beam and the grid (stage tilt ${S.cryoAngle + 7}° on a 45° pre-tilted shuttle). The lamella is the cell's thickness divided by sin(angle) long: ~${((sim.cryo.t0 / 1000) / Math.sin(Math.max(4, S.cryoAngle) * P.DEG)).toFixed(0)} µm here. In the TEM a shallow lamella is also tilted less from the beam.`];
     case 'cryoRelief': return ['Micro-expansion joints', S.cryoRelief ? 'Two slits milled through the film beside the site let it relax, so the thin lamella does not bend.' : 'No relief cuts: the frozen film is under stress, and lamellae below ~300 nm tend to bow and break.'];
     case 'cryoI': case 'cryoTarget': return ['Milling pass', `Next: both boxes at <b>${I(S.cryoI)}</b> toward <b>${Math.round(S.cryoTarget)} nm</b>. The slab can only take so much beam power: keep the current below about half the thickness in nm (pA), e.g. 100 pA at 400 nm, 30 pA at 200 nm.`];
+    case 'inst': {
+      const I = P.instrument();
+      if (I.key === 'generic') return ['Teaching dual beam', `${I.role} Choose one of the NUANCE instruments to work within what a real one can do.`];
+      return [I.name, `${I.role} <b>${I.ions.map((k) => P.ION[k].name).join(', ')}</b> ions, ${P.fmtCurrent(P.ION[I.ions[0]].currents[0])} – ${P.fmtCurrent(P.ION[I.ions[0]].currents.at(-1))}; SEM resolution ${I.semRes.map(([kV, r]) => `${r} nm at ${kV} kV`).join(', ')}. ${I.eds ? `EDS: ${I.eds.name}. ` : 'No EDS. '}${I.ebsd ? `EBSD: ${I.ebsd}. ` : ''}${I.cryo ? `${I.cryo.note}. ` : ''}Press <b>Spec sheet</b> for the details and their sources.`];
+    }
     case 'mode': return null;
   }
   return null;
@@ -178,11 +183,13 @@ export function changeText(key, S, sim) {
 
 export function dataRows(S, sim) {
   const pr = sim.probe, m = under(sim);
+  const I = P.instrument();
   const rows = [
+    ['Instrument', I.key === 'generic' ? I.name : `${I.name} (NUANCE)`],
     ['Accelerating voltage', `${S.kV} kV`],
     ['Probe current', S.current >= 1000 ? `${f1(S.current / 1000)} nA` : `${Math.round(S.current)} pA`],
     ['Convergence α', `${f1(pr.alpha * 1000)} mrad`],
-    ['Probe diameter', `${f1(pr.d)} nm`],
+    ['Probe diameter', `${f1(pr.d)} nm${I.uc ? ` · energy spread ${pr.dE} eV${pr.dE < 0.5 ? ' (UC mode)' : ''}` : ''}`],
     ['  source / Cs / Cc / diffr.', `${f1(pr.dg)} / ${f1(pr.ds)} / ${f1(pr.dc)} / ${f1(pr.dd)}`],
     ['Cs / Cc at this WD', `${f2(pr.Cs * 1000)} / ${f2(pr.Cc * 1000)} mm`],
     ['Depth of field', fmtLen(2 * Math.max(S.fov / 256, pr.d / 1000) / pr.alpha)],

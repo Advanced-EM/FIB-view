@@ -3,6 +3,8 @@
 // Units: lengths in µm unless noted (nm where stated), energies in keV, angles in radians.
 // DOM-free: runs in browsers and in Node (headless runner, MCP server, Python driver).
 
+import { INSTRUMENTS } from './instruments.js';
+
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const DEG = Math.PI / 180;
 
@@ -53,27 +55,42 @@ export function wavelengthA(kV) { const V = kV * 1e3; return 12.2643 / Math.sqrt
 
 // Convergence semi-angle at the specimen: set by the aperture, demagnified onto a working distance.
 export const convAngle = (S) => S.aperture * 0.2e-3 * (7 / (S.wd + 2));
-// Probe diameter from brightness, aberrations and diffraction (quadrature sum, FW50-like).
+// Probe diameter from brightness, aberrations and diffraction (quadrature sum, FW50-like). On a modelled instrument
+// the result is calibrated so that the best probe (low current, best aperture, 4 mm) equals its resolution spec;
+// the model still sets how it grows with current, aperture, working distance and the monochromator.
+const eRaw = (kV, I_pA, alpha, wd, dE) => {
+  const V = kV * 1e3, I = I_pA * 1e-12, Br = 1e8;
+  const Cs = 0.9e-3 * Math.pow(wd / 4, 1.5), Cc = 1.1e-3 * Math.pow(wd / 4, 1.1), lam = wavelengthA(kV) * 1e-10;
+  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * Br * V)) / alpha, ds = 0.5 * Cs * alpha ** 3, dc = Cc * (dE / V) * alpha, dd = (1.22 * lam) / alpha;
+  return { Cs, Cc, dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd) * 1e9 };
+};
+// the monochromator (UC mode) narrows the energy spread to < 0.2 eV below 5 kV and 100 pA
+const energySpread = (kV, I_pA) => (INST.uc && kV < 5 && I_pA < 100 ? 0.2 : 0.7);
+const calCache = new Map(), APERTURES = [10, 20, 30, 60, 120];
+function eCal(kV) {
+  const R = INST.semRes;
+  if (!R) return 1;
+  const key = `${INST.key}|${kV.toFixed(2)}`;
+  if (calCache.has(key)) return calCache.get(key);
+  // spec at this energy: log-log interpolation between the stated points
+  let spec = R[0][1];
+  for (let i = 0; i < R.length - 1; i++) if (kV >= R[i][0]) { const [k0, r0] = R[i], [k1, r1] = R[i + 1], t = clamp(Math.log(kV / k0) / Math.log(k1 / k0), 0, 1); spec = r0 * Math.pow(r1 / r0, t); }
+  if (kV < R[0][0]) spec = R[0][1] * Math.pow(R[0][0] / kV, 0.5);
+  let best = Infinity;
+  // over the column's apertures, at the coincidence point (4 mm)
+  for (const ap of APERTURES) best = Math.min(best, eRaw(kV, 2, convAngle({ aperture: ap, wd: 4 }), 4, energySpread(kV, 2)).d);
+  const f = spec / best;
+  calCache.set(key, f);
+  return f;
+}
 export function probe(S) {
-  const V = S.kV * 1e3, I = S.current * 1e-12; // A
-  const Br = 1e8; // reduced brightness, A m⁻² sr⁻¹ V⁻¹ (Schottky FEG)
-  const alpha = convAngle(S); // rad
-  const Cs = 0.9e-3 * Math.pow(S.wd / 4, 1.5), Cc = 1.1e-3 * Math.pow(S.wd / 4, 1.1); // m
-  const dE = 0.7; // eV
-  const lam = wavelengthA(S.kV) * 1e-10;
-  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * Br * V)) / alpha;
-  const ds = 0.5 * Cs * alpha ** 3;
-  const dc = Cc * (dE / V) * alpha;
-  const dd = (1.22 * lam) / alpha;
-  const d = Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd);
-  return { alpha, Cs, Cc, dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: d * 1e9 }; // nm
+  const alpha = convAngle(S), r = eRaw(S.kV, S.current, alpha, S.wd, energySpread(S.kV, S.current)), f = eCal(S.kV);
+  return { alpha, Cs: r.Cs, Cc: r.Cc, dg: r.dg * f, ds: r.ds * f, dc: r.dc * f, dd: r.dd * f, d: r.d * f, dE: energySpread(S.kV, S.current), cal: f };
 }
 // Probe size as a function of α with everything else fixed (for the optimisation curve).
 export function probeVsAlpha(S, alpha) {
-  const V = S.kV * 1e3, I = S.current * 1e-12, Br = 1e8;
-  const Cs = 0.9e-3 * Math.pow(S.wd / 4, 1.5), Cc = 1.1e-3 * Math.pow(S.wd / 4, 1.1), lam = wavelengthA(S.kV) * 1e-10;
-  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * Br * V)) / alpha, ds = 0.5 * Cs * alpha ** 3, dc = Cc * (0.7 / V) * alpha, dd = (1.22 * lam) / alpha;
-  return { dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd) * 1e9 };
+  const r = eRaw(S.kV, S.current, alpha, S.wd, energySpread(S.kV, S.current)), f = eCal(S.kV);
+  return { dg: r.dg * f, ds: r.ds * f, dc: r.dc * f, dd: r.dd * f, d: r.d * f };
 }
 
 // ---------------------------------------------------------------- materials
@@ -364,6 +381,24 @@ export const ION = {
     currents: [1.5, 10, 30, 100, 300, 1000, 4000, 15000, 60000, 200000, 500000, 1000000] },
 };
 export const ION_KEYS = Object.keys(ION);
+
+// ---------------------------------------------------------------- the instrument being modelled
+// Each NUANCE instrument has its own aperture strip and probe sizes; the teaching instrument keeps the defaults.
+let INST = INSTRUMENTS.generic;
+const BASE = Object.fromEntries(ION_KEYS.map((k) => [k, { currents: [...ION[k].currents], d0: ION[k].d0 }]));
+export const instrument = () => INST;
+export function useInstrument(key) {
+  INST = INSTRUMENTS[key] ?? INSTRUMENTS.generic;
+  for (const k of ION_KEYS) {
+    const strip = INST.ionCurrents?.[k], res = INST.fibRes?.[k], s = ION[k];
+    s.currents = strip ? [...strip] : [...BASE[k].currents];
+    s.d0 = BASE[k].d0;
+    // source term chosen so that the smallest current gives the stated resolution at 30 kV
+    if (res) { const I = s.currents[0] / 1000, c = s.a * Math.pow(I, 0.35), p = s.b * Math.pow(I, 0.9); s.d0 = Math.sqrt(Math.max(0.25, res * res - c * c - p * p)); }
+  }
+  calCache.clear();
+  return INST;
+}
 export const fmtCurrent = (pA) => (pA >= 1e6 ? `${+(pA / 1e6).toFixed(2)} µA` : pA >= 1000 ? `${+(pA / 1000).toFixed(pA < 1e4 ? 2 : 1)} nA` : `${+pA.toFixed(pA < 10 ? 1 : 0)} pA`);
 // ion probe diameter (nm, FW50) at current I (pA) and voltage (kV)
 export function ionProbe(ionKey, I_pA, kV) {
