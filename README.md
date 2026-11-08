@@ -8,6 +8,19 @@ An interactive dual-beam microscope (FIB-SEM) in the browser, built as a small s
 sister exhibit of [Seeing with Electrons](https://advanced-em.github.io/TEM-view/) (TEM) and Seeing Surfaces (SEM):
 everything the SEM exhibit does, plus a focused ion beam that images, mills, deposits and prepares TEM lamellae.
 
+- **The NUANCE instruments:** the twin models the three dual beams of the NUANCE EPIC-FIB facility at Northwestern,
+  chosen under *The instrument* (or "use the hydra", or `fib.set(instrument=...)`):
+  - *Thermo Scientific Helios 5 UC* (Ga⁺, 1 pA–100 nA, 500 V–30 kV, 3.6 nm; SEM 0.6 nm at 2–15 kV, 0.7 nm at 1 kV with the
+    UC monochromator; ETD, TLD, ICD, DBS, ICE, STEM; Oxford Ultim Max Infinity 170 mm² EDS; MultiChem C/Pt/W; EasyLift).
+  - *Thermo Scientific Helios 5 Hydra CX* plasma FIB (Xe⁺, Ar⁺, O⁺, N⁺, 1 pA–2.5 µA, < 20 nm with Xe⁺; Oxford Ultim Max
+    100 mm² EDS and Symmetry S3 EBSD; cryo stage to ~90 K).
+  - *FEI Helios NanoLab 600* (Ga⁺ to 21 nA; five gas injection systems; STEM; Raith ELPHY lithography).
+  - and a *teaching* dual beam with every ion and detector on one column (used by the species comparisons and the guides).
+  Each instrument has its own aperture strip, ion species, voltages, gases, EDS area and modes; the electron and ion probes
+  are calibrated to its resolution specs. Asking for something an instrument lacks (xenon, EBSD, the cryo stage) moves to
+  the NUANCE instrument that has it. Specs come from NUANCE's instrument pages and EPIC-FIB tech talks
+  (`js/instruments.js`); where NUANCE does not state a value, the manufacturer's typical one is used and listed on the
+  *Spec sheet*. The *NUANCE benchmark* experiment repeats the facility's one-hour silicon milling comparison.
 - **3D cutaway dual beam:** the electron column and an ion column 52° from it, crossing at the coincidence point;
   a gallium liquid-metal ion source or an inductively coupled plasma source (xenon, argon, nitrogen, oxygen, with
   their gas bottles), an aperture strip, gas-injection needles, a lift-out manipulator, the ion detector, and all
@@ -134,7 +147,8 @@ it to zoom. In BSE click the quadrants; in EDS click a peak; in EBSD/TKD hover t
 
 | File | Role |
 | --- | --- |
-| `js/physics.js` | Electron and ion probes, materials, yields and ranges, sputtering (Sigmund/ZBL/Yamamura), ion-induced SE and SI, binary-collision Monte Carlo, deposition, crystallography, volumetric specimens |
+| `js/instruments.js` | The NUANCE dual beams (Helios 5 UC, Helios 5 Hydra CX, Helios NanoLab 600) and the teaching instrument: specs and sources |
+| `js/physics.js` | Electron and ion probes (calibrated to the instrument), materials, yields and ranges, sputtering (Sigmund/ZBL/Yamamura), ion-induced SE and SI, binary-collision Monte Carlo, deposition, crystallography, volumetric specimens |
 | `js/mill.js` | Patterning engine (adaptive per-pattern grids: milling, deposition, imaging damage, redeposition), lamella and cryo lamella workflow models |
 | `js/sim.js` | Ray-cast imaging for both beams, ion images, EBSD/TKD, EDS, Monte Carlo runners, slice & view |
 | `js/ops.js`, `js/twin.js` | The instrument's operations without a page (shared by the UI, voice, agents, Python, headless) |

@@ -43,7 +43,8 @@ const shot = (cv, name, crop) => new Promise((ok) => {
 const numbers = {};
 R2.layout.quiet = true;
 
-function fresh() { const S = defaultState(), sim = new Sim(S); return { S, sim }; }
+// the guides' figures are made on the teaching instrument (every ion and the cryo stage on one column)
+function fresh() { const S = { ...defaultState(), inst: 'generic' }, sim = new Sim(S); return { S, sim }; }
 function settle(sim, S, n = 4) { for (let i = 0; i < n; i++) sim.update(0.05); sim._mt = 0; sim.mill.version++; sim.update(0.05); sim.update(0.05); sim.raster = sim.iraster = 0.999; sim.frame++; sim.iframe++; sim.version++; }
 const draw = (sim, S) => R2.draw(sim, S, mCv, sCv, -1);
 

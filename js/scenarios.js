@@ -128,12 +128,13 @@ export const SCENARIOS = {
       const { S, sim } = api;
       api.setSpec('cell');
       api.setMode('cryo');
-      Object.assign(S, { ion: 'Ga', ikV: 30, cryoAngle: 12, cryoRelief: true, cryoT: -190, anticontam: true, kV: 3, current: 25, clarity: 'edu' });
+      // at NUANCE the cryo stage is on the Hydra plasma FIB: xenon
+      Object.assign(S, { ion: 'Xe', ikV: 30, cryoAngle: 12, cryoRelief: true, cryoT: -183, anticontam: true, kV: 3, current: 25, clarity: 'edu' });
       const C = newCryoLamella(rng);
       C.t = C.t0 = Math.round(4200 + rng() * 2400);
-      for (const id of ['sputter', 'gis', 'angle', 'relief']) cryoPrep(C, id, { sputter: 15, gis: 20, angle: 12, relief: true, T: -190 });
+      for (const id of ['sputter', 'gis', 'angle', 'relief']) cryoPrep(C, id, { sputter: 15, gis: 20, angle: 12, relief: true, T: -183 });
       C.step = 4; sim.cryo = C; S.coated = true; S.tilt = 19;
-      S.cryoI = P.nearestCurrent('Ga', 1000); S.cryoTarget = 2500;
+      S.cryoI = P.nearestCurrent('Xe', 1000); S.cryoTarget = 2500;
       S.mis = { hideTruth: true };
       return { hidden: { t0_nm: C.t0, offset: r1(C.offset), drift: r1(C.drift) }, target: { t_nm: 200, window: [150, 250] } };
     },

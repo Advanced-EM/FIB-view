@@ -20,7 +20,7 @@ export function createTwin({ name = 'headless' } = {}) {
     S, sim,
     setSpec: (v) => OPS.specState(S, sim, v), setMode: (m) => OPS.modeState(S, sim, m, S.mode),
     resetMill: () => { sim.mill.reset(); sim.lam = newLamella(); sim.cryo = newCryoLamella(); },
-    restoreState: (st) => { const m = st.mode; Object.assign(S, structuredClone(st)); S.mode = ''; OPS.modeState(S, sim, m, ''); sim.invalidate('all'); },
+    restoreState: (st) => { const m = st.mode; Object.assign(S, structuredClone(st)); OPS.setInstrument(S, sim, S.inst); S.mode = ''; OPS.modeState(S, sim, m, ''); sim.invalidate('all'); },
   };
   const core = new ScriptCore({ name, S, sim, run, busy: () => null, scenarioApi });
   return { S, sim, run, core, ops: OPS };

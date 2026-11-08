@@ -20,6 +20,7 @@ import { ScriptCore, b64, stateSummary } from './scripting.js';
 import { PythonIDE } from './ide.js';
 import { Narrator } from './narration.js';
 import { Recon3D } from './recon3d.js';
+import { INSTRUMENTS, INST_KEYS } from './instruments.js';
 import { SUPPORT, AGENT } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -50,7 +51,13 @@ const beamNow = () => OPS.activeBeam(S);
 const SPEC_KEYS_ALL = ['chip', 'ni', 'sn', 'nmc', 'xs', 'cell', 'hpf'];
 const SPEC_OK = { lam: ['chip'], cryo: ['cell'], sv: ['nmc', 'chip', 'hpf'], tkd: ['xs'], ebsd: ['chip', 'ni', 'xs'], fib: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], mill: ['chip', 'ni', 'sn', 'nmc', 'cell', 'hpf'], gis: ['chip', 'ni', 'sn', 'nmc'] };
 
+const INST = () => P.instrument();
 const CONTROLS = [
+  // the instrument: the three dual beams at NUANCE (Northwestern), or a teaching instrument with everything
+  { sec: 'The instrument' },
+  { chips: 'inst', opts: INST_KEYS.map((k) => [k, INSTRUMENTS[k].short]) },
+  { p: '', pFn: () => { const I = INST(); return I.key === 'generic' ? I.role : `${I.name}${I.room ? ` · NUANCE EPIC-FIB, ${I.room}` : ''}. ${I.role}`; } },
+  { buttons: [['specSheet', 'Spec sheet']] },
   { sec: 'The specimen' },
   // only the specimens that make sense in each mode (a lamella is cut from the chip, TKD needs a thin foil, …)
   { chips: 'spec', dynOpts: () => [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella'], ['cell', 'Frozen cells'], ['hpf', 'HPF yeast']].filter(([k]) => (SPEC_OK[S.mode] ?? SPEC_KEYS_ALL).includes(k)) },
@@ -61,7 +68,7 @@ const CONTROLS = [
   { toggles: [['coated', 'Carbon coating']], show: () => !sim.spec.cryo },
   // the cryo stage: shown whenever a frozen specimen is loaded
   { toggles: [['coated', 'Sputter-coated (Pt)'], ['anticontam', 'Anticontaminator']], show: () => !!sim.spec.cryo },
-  { slider: 'cryoT', label: 'Cryo stage temperature', min: -196, max: -100, step: 1, fmt: (v) => `${Math.round(v)} °C${v > -137 ? ' · devitrifying!' : ''}`, ends: ['LN₂ −196', '', 'ice crystallises above −137'], show: () => !!sim.spec.cryo },
+  { slider: 'cryoT', label: 'Cryo stage temperature', dyn: () => ({ min: INST().cryo?.minC ?? -196, max: -100 }), step: 1, fmt: (v) => `${Math.round(v)} °C${v > -137 ? ' · devitrifying!' : ''}`, ends: ['LN₂ −196', '', 'ice crystallises above −137'], show: () => !!sim.spec.cryo },
 
   { sec: 'Electron beam', modes: `${EB} mill gis lam cryo sv mc` },
   { slider: 'kV', label: 'Accelerating voltage', min: 0.5, max: 30, step: 0.5, fmt: (v) => `${v} kV` },
@@ -77,16 +84,16 @@ const CONTROLS = [
   { slider: 'dwell', label: 'Dwell time', min: 0.1, max: 30, log: true, fmt: (v) => `${v.toFixed(v < 1 ? 2 : 1)} µs`, ends: ['TV rate, noisy', '', 'slow, clean'] },
 
   { sec: 'Ion beam', modes: `${IONM} mc` },
-  { chips: 'ion', opts: P.ION_KEYS.map((k) => [k, `${P.ION[k].name}`]) },
+  { chips: 'ion', dynOpts: () => INST().ions.map((k) => [k, `${P.ION[k].name}`]) },
   { p: '', pFn: () => { const i = P.ION[S.ion]; return `${i.long[0].toUpperCase() + i.long.slice(1)} from ${i.src === 'LMIS' ? 'the liquid-metal source' : 'the plasma source'} · probe ${sim.iprobe.d >= 1000 ? `${(sim.iprobe.d / 1000).toFixed(2)} µm` : `${sim.iprobe.d.toFixed(1)} nm`}`; } },
   { chips: 'icur', label: 'Beam current (aperture strip)', dynOpts: () => P.ION[S.ion].currents.map((c) => [c, P.fmtCurrent(c).replace(' ', ' ')]), small: true },
-  { slider: 'ikV', label: 'Ion voltage', min: 1, max: 30, step: 1, fmt: (v) => `${v} kV`, ends: ['low damage', '', 'fine probe'] },
+  { slider: 'ikV', label: 'Ion voltage', dyn: () => ({ min: Math.max(1, INST().ionKV[0]), max: INST().ionKV[1] }), step: 1, fmt: (v) => `${v} kV`, ends: ['low damage', '', 'fine probe'] },
   { chips: 'ikV', small: true, opts: [[2, '2 kV'], [5, '5 kV'], [8, '8 kV'], [16, '16 kV'], [30, '30 kV']] },
   { slider: 'ifocus', label: 'Ion focus', dyn: () => { const r = Math.max(5, Math.min(3000, S.fov * 40)); return { min: -r, max: r, step: r / 500 }; }, fmt: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)} µm`, modes: 'fib' },
   { slider: 'istig', label: 'Ion stigmator', min: -60, max: 60, step: 0.1, fmt: (v) => v.toFixed(1), modes: 'fib' },
   { buttons: [['autofocus', 'Auto focus (ion)']], modes: 'fib' },
   { slider: 'idwell', label: 'Dwell time', min: 0.1, max: 10, log: true, fmt: (v) => `${v.toFixed(v < 1 ? 2 : 1)} µs`, ends: ['fast, gentle', '', 'slow, damaging'], modes: 'fib' },
-  { chips: 'fibDet', label: 'Detector', opts: [['ise', 'Ion-induced electrons'], ['si', 'Secondary ions']], modes: 'fib' },
+  { chips: 'fibDet', label: 'Detector', dynLabel: () => `Detector · ${INST().detectors.ion}`, opts: [['ise', 'Ion-induced electrons'], ['si', 'Secondary ions']], modes: 'fib' },
   { toggles: [['flood', 'Electron flood (charge neutraliser)']], modes: 'fib mill gis' },
 
   // in the lamella workflow, your own patterns can be drawn while the lamella is still in the chip (steps 1–6)
@@ -95,11 +102,11 @@ const CONTROLS = [
   { slider: 'patW', label: 'Width', min: 0.2, max: 200, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
   { slider: 'patH', label: 'Height', min: 0.05, max: 200, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
   { slider: 'patDepth', label: 'Depth (silicon file)', min: 0.02, max: 100, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
-  { chips: 'gas', label: 'Gas', opts: [['none', 'None'], ['XeF2', 'XeF₂ etch'], ['H2O', 'H₂O (carbon)']] },
+  { chips: 'gas', label: 'Gas', dynOpts: () => [['none', 'None'], ['XeF2', 'XeF₂ etch'], ['H2O', 'H₂O (carbon)']].filter(([k]) => k === 'none' || INST().etch.includes(k)), show: () => INST().etch.length > 0 },
   { toggles: [['rocking', 'Rocking mill'], ['realTime', 'Real time']] },
 
   { sec: 'Deposition', modes: 'gis' },
-  { chips: 'depGas', opts: [['Pt', 'Platinum'], ['C', 'Carbon'], ['W', 'Tungsten']] },
+  { chips: 'depGas', dynOpts: () => [['Pt', 'Platinum'], ['C', 'Carbon'], ['W', 'Tungsten']].filter(([k]) => INST().gis.includes(k)) },
   { chips: 'depBeam', label: 'Beam', opts: [['ion', 'Ion beam'], ['e', 'Electron beam']] },
   { slider: 'patW', label: 'Width', min: 0.2, max: 60, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
   { slider: 'patH', label: 'Height', min: 0.1, max: 60, log: true, fmt: (v) => fmtLen(v), inv: 'pattern' },
@@ -175,6 +182,7 @@ const CONTROLS = [
   { exp: 'nano', title: 'Nanograins: EBSD vs TKD', desc: 'Copper interconnect grains with EBSD on a cross-section, then TKD on the lamella. Compare.', icon: 'grid' },
   { exp: 'cryolam', title: 'A cryo lamella from a frozen cell', desc: 'Yeast in vitreous ice on a grid: sputter coat, cold GIS, grazing-angle milling to 200 nm for cryo-ET.', icon: 'cut' },
   { exp: 'cryoions', title: 'Gallium vs argon in ice', desc: 'Collision cascades of Ga⁺ and Ar⁺ in vitreous ice: how deep each damages a cryo lamella.', icon: 'ions' },
+  { exp: 'nuance', title: 'NUANCE benchmark: an hour of silicon', desc: 'The Hydra at 2.5 µA of xenon against the Helios 600 at 21 nA of gallium, as measured at NUANCE.', icon: 'ions' },
   { exp: 'tour', title: 'Fly through the dual beam', desc: 'From the electron gun and the ion source down to the coincidence point.', icon: 'path' },
   { sec: 'Training scenarios' },
   { p: 'Tasks with a hidden answer, as on a real instrument. With your consent the session is recorded (no personal data) to study how people run a FIB-SEM; you can download it, replay it, or share it with the research dataset on Hugging Face.' },
@@ -251,6 +259,7 @@ function build() {
   }
 }
 function renderChips(b) {
+  if (b.c.dynLabel) { const l = b.el.querySelector('label'); if (l) l.textContent = b.c.dynLabel(); }
   const opts = b.c.dynOpts ? b.c.dynOpts() : b.c.opts, sig = JSON.stringify(opts);
   if (b.box.dataset.sig !== sig) {
     b.box.dataset.sig = sig; b.box.innerHTML = '';
@@ -294,7 +303,14 @@ function refresh() {
   }
   document.querySelectorAll('[data-act="pause"]').forEach((b) => (b.textContent = S.paused ? 'Resume' : 'Pause'));
   document.querySelectorAll('[data-act="millToggle"]').forEach((b) => (b.textContent = sim.mill.active ? 'Stop' : 'Start'));
-  document.querySelectorAll('.modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === S.mode));
+  document.querySelectorAll('.modes button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.mode === S.mode);
+    // modes the instrument cannot do stay clickable: they move to the NUANCE instrument that can
+    const away = !INST().modes.includes(b.dataset.mode);
+    b.classList.toggle('away', away);
+    if (b.dataset.mode === 'inlens') b.firstChild.textContent = INST().key === 'generic' ? 'In-lens' : 'TLD';
+    b.title = `${MODES.find((x) => x[0] === b.dataset.mode)[2]} (key ${KEYS[b.dataset.mode]})${away ? ` · not on the ${INST().short}: switches to the ${INSTRUMENTS[OPS.needInstrument(S, { mode: b.dataset.mode }) ?? S.inst].short}` : ''}`;
+  });
   document.querySelectorAll('.clarity button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.clarity));
   $('.exp[data-exp="tour"]')?.classList.toggle('on', !!scene.tour);
   renderInfo(); header();
@@ -316,21 +332,34 @@ function set(key, v, inv = key) {
 }
 function chip(key, v) {
   if (key === 'spec') return setSpec(v);
-  if (key === 'ion') { OPS.setIon(S, sim, v); refresh(); explain('ion'); return; }
+  if (key === 'inst') return setInstrument(v);
+  if (key === 'ion') { const was = S.inst; OPS.setIon(S, sim, v); refresh(); explain('ion'); noteSwitch(was, `${P.ION[v].name}`); return; }
   if (key === 'mcBeam') { S.mcBeam = v; sim.invalidate('all'); refresh(); explain('mcBeam'); return; }
   if (key === 'bseMode') { S.seg = { comp: { A: 1, B: 1, C: 1, D: 1 }, topoX: { A: 1, B: -1, C: 0, D: 0 }, topoY: { A: 0, B: 0, C: 1, D: -1 } }[v]; return segChanged(); }
   if (key === 'kV') return set('kV', v, 'kV');
   set(key, v, key);
 }
 function segChanged() { S.bseMode = P.segPreset(S.seg); sim.invalidate('seg'); refresh(); explain('seg'); }
+// the instrument decides the ion species, the aperture strip, the detectors and gases, and which modes exist
+function setInstrument(k, why = '') {
+  if (k === S.inst) return;
+  const was = S.inst;
+  OPS.setInstrument(S, sim, k);
+  if (scn.recorder.active) scn.recorder.event('instrument', { from: was, to: k });
+  refresh(); explain('inst');
+  if (why) note(`Now on the ${INST().short}`, why);
+}
+// say so when a request moved the exhibit to another NUANCE instrument
+function noteSwitch(was, what) { if (S.inst !== was) note(`Now on the ${INST().short}`, `${what} is on the <b>${INST().name}</b> at NUANCE, not on the ${INSTRUMENTS[was].short}: the exhibit switched instruments.`); }
 function setSpec(v) { OPS.specState(S, sim, v); refresh(); explain('spec'); }
 function setMode(m) {
   if (m === S.mode) return;
-  const prev = S.mode;
+  const prev = S.mode, was = S.inst;
   OPS.modeState(S, sim, m, prev);
   hoverIdx = -1;
   if (scn.recorder.active) scn.recorder.event('mode', { from: prev, to: m });
   refresh(); explain(null);
+  noteSwitch(was, MODES.find((x) => x[0] === m)?.[1] ?? m);
   if (autoNarrate) N.speak('mode-' + m);
 }
 
@@ -372,16 +401,33 @@ function action(id) {
   if (id === 'cryoCoat') { const r = OPS.cryoCoat(S, sim); explainCryo(r ? 'coat' : null); refresh(); }
   if (id === 'cryolam') {
     OPS.modeState(S, sim, 'cryo', S.mode); OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'cryo', 'x');
-    Object.assign(S, { ion: 'Ga', ikV: 30, cryoAngle: 12, cryoRelief: true, cryoI: P.nearestCurrent('Ga', 1000), cryoTarget: 2500, cryoT: -190, anticontam: true });
+    // the cryo stage at NUANCE is on the Hydra plasma FIB
+    OPS.setIon(S, sim, 'Xe');
+    Object.assign(S, { ikV: 30, cryoAngle: 12, cryoRelief: true, cryoI: P.nearestCurrent(S.ion, 1000), cryoTarget: 2500, cryoT: INST().cryo?.minC ?? -190, anticontam: true });
     sim.invalidate('all'); refresh();
     note('Experiment · cryo lamella', 'Yeast cells frozen in <b>vitreous ice</b> on a gold grid, on a stage at −190 °C. First <b>Run next step</b> through the preparation: sputter coat (watch the charging in the SEM image disappear), the cold GIS layer, the milling angle and the relief cuts. Then mill both boxes, stepping the current down as the lamella thins: e.g. 1 nA → 2.5 µm, 300 pA → 800 nm, 100 pA → 400 nm, 30–50 pA → 200 nm. Finish with a sputter coat. Too much current on a thin slab warms it and the ice crystallises; dawdle and contamination grows on the faces.');
   }
+  if (id === 'nuance') {
+    // the benchmark of NUANCE's 2024 tech talk: one hour of milling silicon on the Hydra (Xe⁺ 2.5 µA)
+    OPS.setInstrument(S, sim, 'hydra');
+    OPS.specState(S, sim, 'chip'); OPS.modeState(S, sim, 'mill', S.mode); OPS.setIon(S, sim, 'Xe');
+    Object.assign(S, { cx: 0, cy: 0, fov: 360, tilt: 52, icur: 2.5e6 });
+    const p = OPS.addPattern(S, sim, { shape: 'rect', x: 0, y: 0, w: 150, h: 150, depth: 100, I: 2.5e6 });
+    sim.mill.start(); sim.invalidate('ion'); refresh();
+    const vXe = P.sputter('Xe', 'Si', 30).Yv * 2.5e6 * 3.6, vGa = P.sputter('Ga', 'Si', 30).Yv * 21000 * 3.6;
+    note('Experiment · one hour of silicon', `NUANCE compared its two FIBs by milling silicon for one hour: <b>3.0 × 10⁶ µm³</b> with Xe⁺ at 2.5 µA on the Hydra against <b>6.4 × 10⁴ µm³</b> with Ga⁺ at 21 nA on the Helios 600, about 50× more. The twin's yields give ${(vXe / 1e6).toFixed(1)} × 10⁶ µm³ for xenon, as measured, and ${(vGa / 1e4).toFixed(1)} × 10⁴ µm³ for gallium: NUANCE's gallium run removed about ${(6.4e4 / vGa).toFixed(1)}× the textbook silicon yield. Here a 150 × 150 µm box, 100 µm deep in silicon, runs at 2.5 µA (about ${(p.tEst / 60).toFixed(0)} min of instrument time, shown sped up).`);
+  }
   if (id === 'cryoions') {
+    OPS.setInstrument(S, sim, 'generic');
     OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'mc', S.mode);
     Object.assign(S, { mcBeam: 'ion', ion: 'Ga', ikV: 30, mcIons: 300, cx: 30, cy: 30 });
     sim.invalidate('all'); refresh();
     const g = cryoDamage('Ga', 30), a = cryoDamage('Ar', 30), x = cryoDamage('Xe', 30);
     note('Experiment · ions in ice', `30 keV <b>gallium</b> ions in vitreous ice: each cascade runs ~${Math.round(P.ionRange('Ga', 'Ice', 30).Rp)} nm deep, far deeper than in silicon, because ice is light and loose. Gallium also stays implanted. Switch the ion to <b>Ar⁺</b> or <b>Xe⁺</b> (Ion beam controls) and compare. In a 200 nm cryo lamella the damaged layer on each face is ~${Math.round(g)} nm with Ga, ~${Math.round(a)} nm with Ar and ~${Math.round(x)} nm with Xe: that is why plasma FIBs are winning for cryo-ET.`);
+  }
+  if (id === 'specSheet') {
+    const I = INST(), rows = [['Electron column', I.ecol], ['Ion column', I.icol], ...I.spec, ['Detectors', Object.values(I.detectors).filter(Boolean).join(' · ')], ['Manipulator', I.manipulator], ...(I.extras.length ? [['Also', I.extras.join(' · ')]] : []), ['Geometry', 'columns 52° apart, coincidence point at 4 mm working distance']];
+    note(`Spec sheet · ${esc(I.name)}`, `<table class="data">${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>${I.typical.length ? `<small>Not stated by NUANCE, so the manufacturer's typical values are used for: ${esc(I.typical.join('; '))}.</small>` : ''}`);
   }
   if (id === 'agent') return agent.connected || agent.status === 'connecting' ? agent.disconnect() : agent.connect();
   if (id === 'voiceHelp') voice.flash(`<b>What can I say?</b><p>${esc(HELP)}</p>`, 12000);
@@ -418,13 +464,15 @@ function action(id) {
     note('Experiment · cross-section', `Three patterns run in turn: a <b>Pt cap</b> over the region of interest, a <b>regular cross-section</b> at 9 nA (a staircase trench, deepest at the face), and a <b>cleaning cross-section</b> at 0.8 nA that polishes the face. The SEM image on the right looks into the trench at 52°: watch the passivation, the copper wiring levels, the tungsten vias and the silicon appear on the face. ${p1 ? '' : ''}`);
   }
   if (id === 'species') {
+    // three species on one specimen: only the teaching instrument has them all (at NUANCE, Ga is on the Helios 5 UC)
+    OPS.setInstrument(S, sim, 'generic');
     OPS.specState(S, sim, 'nmc');
     OPS.modeState(S, sim, 'mill', S.mode);
     Object.assign(S, { cx: 0, cy: 0, fov: 40, tilt: 52 });
     for (const [k, x] of [['Ga', -12], ['Xe', 0], ['O', 12]]) { OPS.setIon(S, sim, k); OPS.addPattern(S, sim, { shape: 'rect', x, y: 0, w: 8, h: 8, depth: 3, I: P.nearestCurrent(k, 4000) }); }
     OPS.setIon(S, sim, 'Xe');
     sim.mill.start(); sim.invalidate('ion'); refresh();
-    note('Experiment · ion species', 'Three 8 × 8 µm boxes, each asked to reach 3 µm (in silicon), milled with <b>gallium</b> (left), <b>xenon</b> (centre) and <b>oxygen</b> (right) at about 4 nA. Xenon sputters fastest per ion. Oxygen burns the carbon binder away several times faster than the oxide particles, so the particles stand proud: a <b>selective</b> mill. Watch the times in the pattern list, then look at the trenches in the SEM view.');
+    note('Experiment · ion species', '<i>On the teaching instrument: at NUANCE, gallium is on the Helios 5 UC and xenon and oxygen on the Hydra.</i> Three 8 × 8 µm boxes, each asked to reach 3 µm (in silicon), milled with <b>gallium</b> (left), <b>xenon</b> (centre) and <b>oxygen</b> (right) at about 4 nA. Xenon sputters fastest per ion. Oxygen burns the carbon binder away several times faster than the oxide particles, so the particles stand proud: a <b>selective</b> mill. Watch the times in the pattern list, then look at the trenches in the SEM view.');
   }
   if (id === 'channel') {
     OPS.specState(S, sim, 'ni');
@@ -510,7 +558,7 @@ function explain(key) {
 function header() {
   const n = {
     se: ['Everhart–Thornley detector · SE image', 'Total electron yield vs voltage'],
-    inlens: ['In-lens detector · SE image', 'Probe size vs convergence'],
+    inlens: [INST().key === 'generic' ? 'In-lens detector · SE image' : 'TLD · through-lens detector, SE image', 'Probe size vs convergence'],
     bse: ['BSE detector · ' + P.segLabel(S.seg), 'Backscatter coefficient & segments'],
     ebsd: ['EBSD orientation map', 'Kikuchi pattern & indexing'],
     tkd: ['TKD orientation map', 'Kikuchi pattern & indexing'],
@@ -600,6 +648,7 @@ function acquireNow() { redraw = true; R2.draw(sim, S, mainCv, secCv, hoverIdx);
 // ------------------------------------------------------------------ one executor for voice, agent and scripts
 let setAI = () => {};
 function runOp(op) {
+  const was = S.inst;
   OPS.applyOp(S, sim, op, {
     setMode, setSpec, autofocus: () => (scn.blocked('autofocus') ? blockedMsg('autofocus') : autofocus()),
     other: (o) => {
@@ -616,6 +665,8 @@ function runOp(op) {
   if (op.op === 'lam' && op.done) explainLam(op.v === 'next' ? op.done : op.v, typeof op.done === 'number' ? op.done : 0);
   refresh();
   if (op.op === 'set' || op.op === 'chip') explain(op.k);
+  if (op.op === 'inst') explain('inst');
+  else if (S.inst !== was) noteSwitch(was, op.op === 'chip' && op.k === 'ion' ? P.ION[op.v]?.name ?? op.v : op.op === 'mode' ? (MODES.find((x) => x[0] === op.v)?.[1] ?? op.v) : 'That');
   return op;
 }
 const voice = new Voice({
@@ -662,12 +713,14 @@ const scenarioApi = {
   download: (b, n) => download(b, n),
   invalidateAll: () => { sim.invalidate('all'); refresh(); },
   applyFlat: (st) => {
+    // replays of sessions recorded before the NUANCE instruments ran on the teaching instrument
+    P.useInstrument(st.inst ?? 'generic'); S.inst = st.inst ?? 'generic';
     if (st.mode && st.mode !== S.mode) OPS.modeState(S, sim, st.mode, S.mode);
     for (const [k, v] of Object.entries(st)) if (k !== 'mode' && k in S && k !== 'paused') S[k] = v;
     sim.invalidate('all'); refresh();
   },
   snapshotState: () => structuredClone(Object.fromEntries(SESSION_KEYS.map((k) => [k, S[k]]))),
-  restoreState: (st) => { const m = st.mode; Object.assign(S, structuredClone(st)); S.mode = ''; OPS.modeState(S, sim, m, ''); sim.invalidate('all'); refresh(); },
+  restoreState: (st) => { const m = st.mode; Object.assign(S, structuredClone(st)); P.useInstrument(S.inst); S.mode = ''; OPS.modeState(S, sim, m, ''); sim.invalidate('all'); refresh(); },
   onEvent: () => refresh(),
 };
 const scn = new Scenarios(scenarioApi);
@@ -722,10 +775,12 @@ function loadSessionFile(text) {
   const o = JSON.parse(text);
   if (!o.format?.startsWith('fib-view-session') || !o.state) throw new Error('not a FIB-view session');
   const st = o.state, d = defaultState(), mode = OPS.MODES.includes(st.mode) ? st.mode : S.mode;
+  // sessions saved before the NUANCE instruments were on the teaching instrument
+  OPS.setInstrument(S, sim, INSTRUMENTS[st.inst] ? st.inst : 'generic');
   if (P.SPECIMENS[st.spec]) OPS.specState(S, sim, st.spec);
   // the mode first (it moves the stage and picks currents), then the saved values on top
   S.mode = ''; OPS.modeState(S, sim, mode, '');
-  for (const k of SESSION_KEYS) { if (!(k in st) || k === 'mode' || k === 'spec' || k === 'mis') continue; if (typeof st[k] === typeof d[k]) S[k] = st[k]; }
+  for (const k of SESSION_KEYS) { if (!(k in st) || k === 'mode' || k === 'spec' || k === 'mis' || k === 'inst') continue; if (typeof st[k] === typeof d[k]) S[k] = st[k]; }
   for (const p of o.patterns ?? []) sim.mill.add({ ...p, status: 'queued' });
   OPS.runQueue(sim);
   if (o.lamella && typeof o.lamella.step === 'number') Object.assign(sim.lam, o.lamella, { busy: null });

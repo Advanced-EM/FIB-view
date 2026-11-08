@@ -4,6 +4,7 @@
 import * as P from './physics.js';
 import { newLamella, thinPass, LAM_STEPS, newCryoLamella, cryoPrep, cryoPass, CRYO_STEPS } from './mill.js';
 import { ION_MODES } from './sim.js';
+import { INSTRUMENTS, instrumentFor } from './instruments.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const MODES = ['se', 'inlens', 'bse', 'ebsd', 'tkd', 'eds', 'fib', 'mill', 'gis', 'sv', 'lam', 'cryo', 'mc'];
@@ -14,8 +15,31 @@ const SITE = { chip: [6, 6], ni: [0, 0], sn: [0, 0], nmc: [0, 0], xs: [6, 1.3], 
 // the specimens each cryo-capable mode can use, and the modes that need a cryo specimen
 export const CRYO_SPECS = ['cell', 'hpf'];
 
+// switch to another instrument: its ion species, aperture strip and voltages; leave what it cannot do
+export function setInstrument(S, sim, k) {
+  if (!INSTRUMENTS[k]) return false;
+  const I = P.useInstrument(k);
+  S.inst = k;
+  if (!I.ions.includes(S.ion)) S.ion = I.ions[0];
+  S.icur = P.nearestCurrent(S.ion, S.icur);
+  S.ikV = clamp(S.ikV, I.ionKV[0], I.ionKV[1]);
+  if (S.gas !== 'none' && !I.etch.includes(S.gas)) S.gas = 'none';
+  if (!I.gis.includes(S.depGas)) S.depGas = I.gis[0];
+  if (I.cryo) S.cryoT = Math.max(S.cryoT, I.cryo.minC);
+  if (P.SPECIMENS[S.spec].cryo && !I.cryo) specState(S, sim, 'chip');
+  if (!I.modes.includes(S.mode)) modeState(S, sim, 'se');
+  sim.invalidate('all');
+  return true;
+}
+// the instrument a request needs (an ion species, a mode, a frozen specimen); null if the current one will do
+export function needInstrument(S, need) {
+  const k = instrumentFor(need, S.inst);
+  return k === S.inst ? null : k;
+}
+
 export function specState(S, sim, v) {
   if (!P.SPECIMENS[v]) return false;
+  if (P.SPECIMENS[v].cryo && !P.instrument().cryo) setInstrument(S, sim, instrumentFor({ cryo: true }, S.inst));
   S.spec = v;
   const sp = P.SPECIMENS[v];
   S.fov = sp.fov; [S.cx, S.cy] = v === 'chip' ? [0, 0] : [0, 0]; S.edsSel = 'all';
@@ -30,6 +54,8 @@ export function specState(S, sim, v) {
 // switching mode moves the stage and the detectors as an operator would
 export function modeState(S, sim, m, prev = S.mode) {
   if (!MODES.includes(m) || m === prev) return false;
+  // a mode this instrument cannot do moves to the NUANCE instrument that can (EBSD, TKD and cryo are on the Hydra)
+  if (!P.instrument().modes.includes(m)) setInstrument(S, sim, instrumentFor({ mode: m }, S.inst));
   S.mode = m;
   const ionish = ION_MODES.includes(m) || m === 'sv';
   if (m === 'ebsd') { if (!['ni', 'chip', 'xs'].includes(S.spec)) specState(S, sim, 'ni'); S.tilt = 70; S.kV = Math.max(S.kV, 20); S.current = Math.max(S.current, 3000); S.wd = Math.max(S.wd, 14); }
@@ -64,6 +90,8 @@ export function modeState(S, sim, m, prev = S.mode) {
 export function setIon(S, sim, k) {
   if (!P.ION[k]) return false;
   const was = S.icur, wasSrc = P.ION[S.ion].src;
+  // an ion this instrument does not have: go to the NUANCE instrument that has it (Ga: Helios 5 UC; Xe, Ar, O, N: Hydra)
+  if (!P.instrument().ions.includes(k)) setInstrument(S, sim, instrumentFor({ ion: k }, S.inst));
   S.ion = k;
   // keep a similar current (the plasma column's smallest probes are larger, its largest currents far higher)
   S.icur = P.nearestCurrent(k, was);
@@ -206,15 +234,16 @@ export function applyOp(S, sim, op, hooks = {}) {
       else if (k === 'clarity') { if (['edu', 'real'].includes(op.v)) S.clarity = op.v; }
       else if (['flood', 'rocking', 'showLabels', 'coated', 'realTime', 'cryoRelief', 'anticontam'].includes(k)) S[k] = !!op.v;
       else if (k === 'cryoAngle') S.cryoAngle = clamp(+op.v, 5, 30);
-      else if (k === 'cryoT') S.cryoT = clamp(+op.v, -196, 20);
+      else if (k === 'cryoT') S.cryoT = clamp(+op.v, P.instrument().cryo?.minC ?? -196, 20);
       else if (k in S && typeof S[k] === typeof op.v) S[k] = op.v;
       op.v = S[k];
       sim.invalidate(['focus', 'ifocus', 'stig', 'istig'].includes(k) ? k : k === 'tilt' ? 'tilt' : 'all');
       break;
     }
+    case 'inst': setInstrument(S, sim, op.v); break;
     case 'chip':
       if (op.k === 'ion') setIon(S, sim, op.v);
-      else if (op.k === 'gas' && ['none', 'XeF2', 'H2O'].includes(op.v)) S.gas = op.v;
+      else if (op.k === 'gas' && (op.v === 'none' || P.instrument().etch.includes(op.v))) S.gas = op.v;
       else if (op.k === 'fibDet' && ['ise', 'si'].includes(op.v)) { S.fibDet = op.v; sim.invalidate('fibDet'); }
       else if (op.k === 'mcBeam' && ['e', 'ion'].includes(op.v)) { S.mcBeam = op.v; sim.invalidate('all'); }
       break;
@@ -227,7 +256,7 @@ export function applyOp(S, sim, op, hooks = {}) {
       else { S.current = clamp(S.current * (op.f > 0 ? 2 : 0.5), 1, 20000); sim.invalidate('current'); }
       break;
     case 'kv':
-      if (op.beam === 'ion') { S.ikV = clamp(Math.round(op.v), 1, 30); op.v = S.ikV; sim.invalidate('ikV'); }
+      if (op.beam === 'ion') { const r = P.instrument().ionKV; S.ikV = clamp(Math.round(op.v), Math.max(1, r[0]), r[1]); op.v = S.ikV; sim.invalidate('ikV'); }
       else { S.kV = clamp(+op.v, 0.5, 30); op.v = S.kV; sim.invalidate('kV'); }
       break;
     case 'nudge': S[op.k] = +(S[op.k] + (op.d * 1.5 * S.fov) / 256 / (op.k === 'ifocus' ? sim.iprobe.alpha : sim.probe.alpha)).toFixed(4); sim.invalidate(op.k); break;

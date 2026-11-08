@@ -60,6 +60,8 @@ for (const id of Object.keys(SCENARIOS)) {
   ok(P.sputter('Ga', 'Ice', 30).Yv > 3 * P.sputter('Ga', 'Si', 30).Yv && P.sputter('Ga', 'PtCryo', 30).Yv < P.sputter('Ga', 'Ice', 30).Yv / 5, 'ice mills several times faster than Si; the cold GIS layer far slower than ice');
   const run = (o = {}) => {
     const tw = createTwin(), { S, sim } = tw;
+    // species comparisons on the teaching instrument (at NUANCE the cryo stage is on the Hydra, without gallium)
+    tw.run({ op: 'inst', v: 'generic' });
     Object.assign(S, { cryoRelief: o.relief ?? true, anticontam: o.anticontam ?? true });
     tw.run({ op: 'chip', k: 'ion', v: o.ion ?? 'Ga' }); tw.run({ op: 'mode', v: 'cryo' });
     for (let i = 0; i < 4; i++) tw.run({ op: 'cryo', v: 'next' });
@@ -72,6 +74,24 @@ for (const id of Object.keys(SCENARIOS)) {
   ok(run({ passes: [[1000, 200]] }).devit_pct > 50, 'rushing at 1 nA to 200 nm devitrifies the ice');
   ok(run({ relief: false }).bent, 'no relief cuts: the thin lamella bends');
   ok(run({ anticontam: false, wait: 600 }).contam_nm > 5 * run({ wait: 600 }).contam_nm, 'without the anticontaminator, contamination grows ~10× faster');
+}
+
+// the NUANCE instruments: resolution specs, aperture strips, and switching to the instrument a request needs
+{
+  const best = (kV) => Math.min(...[10, 20, 30, 60, 120].map((ap) => P.probe({ kV, aperture: ap, current: 2, wd: 4 }).d));
+  P.useInstrument('h5uc');
+  ok(Math.abs(best(1) - 0.7) < 0.01 && Math.abs(best(15) - 0.6) < 0.01 && Math.abs(P.ionProbe('Ga', 1.1, 30).d - 3.6) < 0.05 && P.ION.Ga.currents.at(-1) === 100000, `Helios 5 UC: SEM ${best(1).toFixed(2)} nm at 1 kV, ${best(15).toFixed(2)} nm at 15 kV; Ga ${P.ionProbe('Ga', 1.1, 30).d.toFixed(2)} nm, up to 100 nA`);
+  P.useInstrument('hydra');
+  ok(P.ionProbe('Xe', 1, 30).d <= 20.01 && P.ION.Xe.currents[0] === 1 && P.ION.Xe.currents.at(-1) === 2.5e6, `Hydra: Xe ${P.ionProbe('Xe', 1, 30).d.toFixed(1)} nm at 1 pA, 1 pA – 2.5 µA`);
+  P.useInstrument('h600');
+  ok(Math.abs(best(15) - 0.9) < 0.01 && P.ION.Ga.currents.at(-1) === 21000, `Helios 600: SEM ${best(15).toFixed(2)} nm at 15 kV, Ga up to 21 nA`);
+  const tw = createTwin(), { S } = tw;
+  ok(S.inst === 'h5uc' && S.ion === 'Ga', 'starts on the Helios 5 UC with gallium');
+  tw.run({ op: 'chip', k: 'ion', v: 'Xe' }); ok(S.inst === 'hydra' && S.ion === 'Xe', 'asking for xenon moves to the Hydra');
+  tw.run({ op: 'chip', k: 'ion', v: 'Ga' }); tw.run({ op: 'mode', v: 'ebsd' }); ok(S.inst === 'hydra' && S.mode === 'ebsd', 'EBSD (Symmetry S3) is on the Hydra');
+  tw.run({ op: 'inst', v: 'h5uc' }); ok(S.mode === 'se' && S.ion === 'Ga', 'the Helios 5 UC has no EBSD: back to the SE image');
+  tw.run({ op: 'mode', v: 'cryo' }); ok(S.inst === 'hydra' && S.spec === 'cell' && S.cryoT >= -183, `cryo lamella on the Hydra (stage ${S.cryoT} °C, ~90 K)`);
+  tw.run({ op: 'inst', v: 'generic' }); P.useInstrument('generic');
 }
 
 // command grammar
