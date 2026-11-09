@@ -7,6 +7,7 @@ import * as OPS from '../js/ops.js';
 import { SCENARIOS } from '../js/scenarios.js';
 import { interpret } from '../js/voice.js';
 import { collectData } from '../js/export.js';
+import { dataRows } from '../js/explain.js';
 
 let fails = 0;
 const ok = (c, m) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${m}`); if (!c) fails++; };
@@ -86,12 +87,23 @@ for (const id of Object.keys(SCENARIOS)) {
   P.useInstrument('h600');
   ok(Math.abs(best(15) - 0.9) < 0.01 && P.ION.Ga.currents.at(-1) === 21000, `Helios 600: SEM ${best(15).toFixed(2)} nm at 15 kV, Ga up to 21 nA`);
   const tw = createTwin(), { S } = tw;
-  ok(S.inst === 'h5uc' && S.ion === 'Ga', 'starts on the Helios 5 UC with gallium');
+  ok(S.inst === 'generic', 'starts on the teaching instrument'); tw.run({ op: 'inst', v: 'h5uc' }); ok(S.inst === 'h5uc' && S.ion === 'Ga', 'the Helios 5 UC has gallium');
   tw.run({ op: 'chip', k: 'ion', v: 'Xe' }); ok(S.inst === 'hydra' && S.ion === 'Xe', 'asking for xenon moves to the Hydra');
   tw.run({ op: 'chip', k: 'ion', v: 'Ga' }); tw.run({ op: 'mode', v: 'ebsd' }); ok(S.inst === 'hydra' && S.mode === 'ebsd', 'EBSD (Symmetry S3) is on the Hydra');
   tw.run({ op: 'inst', v: 'h5uc' }); ok(S.mode === 'se' && S.ion === 'Ga', 'the Helios 5 UC has no EBSD: back to the SE image');
   tw.run({ op: 'mode', v: 'cryo' }); ok(S.inst === 'hydra' && S.spec === 'cell' && S.cryoT >= -183, `cryo lamella on the Hydra (stage ${S.cryoT} °C, ~90 K)`);
   tw.run({ op: 'inst', v: 'generic' }); P.useInstrument('generic');
+}
+
+// the instrument readout table renders on every instrument and in every mode (it runs each frame in the exhibit)
+{
+  const tw = createTwin();
+  let err = '';
+  for (const k of ['generic', 'h5uc', 'hydra', 'h600']) for (const m of ['se', 'fib', 'mill', 'cryo', 'sv']) {
+    try { tw.run({ op: 'inst', v: k }); tw.run({ op: 'mode', v: m }); tw.sim.update(0.05); const r = dataRows(tw.S, tw.sim); if (!r.every(([a, b]) => typeof a === 'string' && typeof b === 'string')) err ||= `${k}/${m}: bad row`; } catch (e) { err ||= `${k}/${m}: ${e.message}`; }
+  }
+  P.useInstrument('generic');
+  ok(!err, `readout table on every instrument and mode${err ? `: ${err}` : ''}`);
 }
 
 // command grammar

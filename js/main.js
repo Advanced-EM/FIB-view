@@ -53,11 +53,6 @@ const SPEC_OK = { lam: ['chip'], cryo: ['cell'], sv: ['nmc', 'chip', 'hpf'], tkd
 
 const INST = () => P.instrument();
 const CONTROLS = [
-  // the instrument: the three dual beams at NUANCE (Northwestern), or a teaching instrument with everything
-  { sec: 'The instrument' },
-  { chips: 'inst', opts: INST_KEYS.map((k) => [k, INSTRUMENTS[k].short]) },
-  { p: '', pFn: () => { const I = INST(); return I.key === 'generic' ? I.role : `${I.name}${I.room ? ` · NUANCE EPIC-FIB, ${I.room}` : ''}. ${I.role}`; } },
-  { buttons: [['specSheet', 'Spec sheet']] },
   { sec: 'The specimen' },
   // only the specimens that make sense in each mode (a lamella is cut from the chip, TKD needs a thin foil, …)
   { chips: 'spec', dynOpts: () => [['chip', 'Microchip'], ['ni', 'Nickel'], ['sn', 'Tin on C'], ['nmc', 'Battery cathode'], ['xs', 'Chip lamella'], ['cell', 'Frozen cells'], ['hpf', 'HPF yeast']].filter(([k]) => (SPEC_OK[S.mode] ?? SPEC_KEYS_ALL).includes(k)) },
@@ -182,7 +177,6 @@ const CONTROLS = [
   { exp: 'nano', title: 'Nanograins: EBSD vs TKD', desc: 'Copper interconnect grains with EBSD on a cross-section, then TKD on the lamella. Compare.', icon: 'grid' },
   { exp: 'cryolam', title: 'A cryo lamella from a frozen cell', desc: 'Yeast in vitreous ice on a grid: sputter coat, cold GIS, grazing-angle milling to 200 nm for cryo-ET.', icon: 'cut' },
   { exp: 'cryoions', title: 'Gallium vs argon in ice', desc: 'Collision cascades of Ga⁺ and Ar⁺ in vitreous ice: how deep each damages a cryo lamella.', icon: 'ions' },
-  { exp: 'nuance', title: 'NUANCE benchmark: an hour of silicon', desc: 'The Hydra at 2.5 µA of xenon against the Helios 600 at 21 nA of gallium, as measured at NUANCE.', icon: 'ions' },
   { exp: 'tour', title: 'Fly through the dual beam', desc: 'From the electron gun and the ion source down to the coincidence point.', icon: 'path' },
   { sec: 'Training scenarios' },
   { p: 'Tasks with a hidden answer, as on a real instrument. With your consent the session is recorded (no personal data) to study how people run a FIB-SEM; you can download it, replay it, or share it with the research dataset on Hugging Face.' },
@@ -194,6 +188,14 @@ const CONTROLS = [
   { sec: 'Python scripting' },
   { p: 'Script the instrument in Python: set both beams, mill and deposit, acquire NumPy data, run analyses, and test automation against a hidden error (challenges). The IDE runs Python in this browser; the same scripts run on a desktop with <code>tools/fibview-py</code>. Shortcut <kbd>P</kbd>.' },
   { buttons: [['ide', 'Open the Python IDE']] },
+  // the digital twin of NUANCE's dual beams (Northwestern EPIC-FIB): off the front page; the exhibit runs on the
+  // teaching instrument (every ion, detector and the cryo stage) until a visitor picks one here
+  { sec: 'Digital twin · NUANCE' },
+  { p: 'Run the exhibit as one of the dual beams at NUANCE (Northwestern): their ion species, currents, detectors, gases and resolution. Asking for something an instrument lacks moves to the one that has it.' },
+  { chips: 'inst', opts: INST_KEYS.map((k) => [k, INSTRUMENTS[k].short]) },
+  { p: '', pFn: () => { const I = INST(); return I.key === 'generic' ? I.role : `${I.name}${I.room ? ` · NUANCE EPIC-FIB, ${I.room}` : ''}. ${I.role}`; } },
+  { buttons: [['specSheet', 'Spec sheet']] },
+  { exp: 'nuance', title: 'NUANCE benchmark: an hour of silicon', desc: 'The Hydra at 2.5 µA of xenon against the Helios 600 at 21 nA of gallium, as measured at NUANCE.', icon: 'ions' },
   { sec: 'Session & data' },
   { buttons: [['saveSession', 'Save session'], ['loadSession', 'Load session'], ['exportData', 'Export data (.npz)']] },
   { sec: 'Instrument readout' },
@@ -401,8 +403,8 @@ function action(id) {
   if (id === 'cryoCoat') { const r = OPS.cryoCoat(S, sim); explainCryo(r ? 'coat' : null); refresh(); }
   if (id === 'cryolam') {
     OPS.modeState(S, sim, 'cryo', S.mode); OPS.specState(S, sim, 'cell'); OPS.modeState(S, sim, 'cryo', 'x');
-    // the cryo stage at NUANCE is on the Hydra plasma FIB
-    OPS.setIon(S, sim, 'Xe');
+    // on a NUANCE instrument the cryo stage is on the Hydra plasma FIB (no gallium); the teaching instrument keeps Ga
+    if (S.inst !== 'generic') OPS.setIon(S, sim, 'Xe');
     Object.assign(S, { ikV: 30, cryoAngle: 12, cryoRelief: true, cryoI: P.nearestCurrent(S.ion, 1000), cryoTarget: 2500, cryoT: INST().cryo?.minC ?? -190, anticontam: true });
     sim.invalidate('all'); refresh();
     note('Experiment · cryo lamella', 'Yeast cells frozen in <b>vitreous ice</b> on a gold grid, on a stage at −190 °C. First <b>Run next step</b> through the preparation: sputter coat (watch the charging in the SEM image disappear), the cold GIS layer, the milling angle and the relief cuts. Then mill both boxes, stepping the current down as the lamella thins: e.g. 1 nA → 2.5 µm, 300 pA → 800 nm, 100 pA → 400 nm, 30–50 pA → 200 nm. Finish with a sputter coat. Too much current on a thin slab warms it and the ice crystallises; dawdle and contamination grows on the faces.');
